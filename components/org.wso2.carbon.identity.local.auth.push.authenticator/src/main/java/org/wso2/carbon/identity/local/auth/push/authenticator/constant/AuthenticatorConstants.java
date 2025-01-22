@@ -88,9 +88,9 @@ public class AuthenticatorConstants {
     public static final String NOTIFICATION_SCENARIO = "NOTIFICATION_SCENARIO";
 
     // JWT token claim values.
-    public static final String TOKEN_AUTH_STATUS = "res";
-    public static final String TOKEN_AUTH_CHALLENGE = "chg";
-    public static final String TOKEN_NUMBER_CHALLENGE = "num";
+    public static final String TOKEN_AUTH_STATUS = "response";
+    public static final String TOKEN_AUTH_CHALLENGE = "challenge";
+    public static final String TOKEN_NUMBER_CHALLENGE = "numberChallenge";
 
     public static final String AUTH_REQUEST_STATUS_APPROVED = "APPROVED";
     public static final String AUTH_REQUEST_STATUS_DENIED = "DENIED";
@@ -99,6 +99,14 @@ public class AuthenticatorConstants {
 
     public static final String PUSH_AUTH_FAILED_ATTEMPTS_CLAIM =
             "http://wso2.org/claims/identity/failedPushAuthAttempts";
+
+    // Auth error messages to be sent in the url in failure scenarios.
+    public static final String PUSH_AUTH_FAIL_INTERNAL_ERROR = "Push Authentication Failed due to internal error";
+    public static final String PUSH_AUTH_FAIL_USER_DENIED = "User denied the push authentication request";
+    public static final String PUSH_AUTH_FAIL_NUMBER_CHALLENGE_FAILED = "Number challenge failed for " +
+            "the push authentication request";
+    public static final String PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED = "Token response validation failed for " +
+            "the push authentication request";
 
     /**
      * Authentication flow scenarios associated with the authenticator.

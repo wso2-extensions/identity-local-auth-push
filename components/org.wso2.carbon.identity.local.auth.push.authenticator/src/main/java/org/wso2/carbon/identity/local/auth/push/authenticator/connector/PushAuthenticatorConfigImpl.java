@@ -69,7 +69,7 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         Map<String, String> descriptionMapping = new HashMap<>();
         descriptionMapping.put(ENABLE_PUSH_NUMBER_CHALLENGE, "Enable number challenge during push authentication.");
         descriptionMapping.put(ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "Enable enrolling push notification devices" +
-                "for users progressively during authentication.");
+                " for users progressively during authentication.");
         descriptionMapping.put(ENABLE_RESEND_NOTIFICATION_TIME, "Number of seconds to enable resending the push " +
                 "notification.");
         descriptionMapping.put(RESEND_NOTIFICATION_MAX_ATTEMPTS, "Maximum number of attempts to resend notification.");

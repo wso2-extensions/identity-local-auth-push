@@ -18,33 +18,46 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.core.ServiceURL;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
+import org.wso2.carbon.identity.event.IdentityEventException;
+import org.wso2.carbon.identity.event.event.Event;
+import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.local.auth.push.authenticator.exception.PushAuthenticatorServerException;
+import org.wso2.carbon.identity.local.auth.push.authenticator.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils;
+import ua_parser.Client;
 
 import java.lang.reflect.Field;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator.SKIP_RETRY_FROM_AUTHENTICATOR;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ERROR_MSG;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT;
-import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.SHOW_AUTH_FAILURE_REASON_PAGE;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.RESEND_NOTIFICATION_MAX_ATTEMPTS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_FRIENDLY_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_I18_KEY;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_INTERNAL_ERROR;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_ID;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_WAIT_PAGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.SCENARIO;
@@ -52,6 +65,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PUSH_DEVICE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.SEND_PUSH_NOTIFICATION;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USER_AGENT;
 
 public class PushAuthenticatorTest {
 
@@ -129,12 +143,6 @@ public class PushAuthenticatorTest {
     }
 
     @Test
-    public void testRedirectToAuthFailureReasonPage() {
-
-        assertTrue(pushAuthenticator.redirectToAuthFailureReasonPage());
-    }
-
-    @Test
     public void testCanHandle() {
 
         when(httpServletRequest.getParameter(USERNAME)).thenReturn("sampleUser");
@@ -172,15 +180,16 @@ public class PushAuthenticatorTest {
     }
 
     @Test
-    public void testHandleAuthErrorReasonScenario() {
+    public void testHandleAuthErrorScenario() {
 
         AuthenticationContext authenticationContext = new AuthenticationContext();
         try {
-            throw pushAuthenticator.handleAuthErrorReasonScenario(
+            throw pushAuthenticator.handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
                     authenticationContext, ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND);
         } catch (AuthenticationFailedException e) {
-            assertTrue(authenticationContext.getProperty(SHOW_AUTH_FAILURE_REASON_PAGE) != null
-                    && (Boolean) authenticationContext.getProperty(SHOW_AUTH_FAILURE_REASON_PAGE));
+            assertTrue(authenticationContext.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR) != null
+                    && (Boolean) authenticationContext.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR));
+            assertNotNull(authenticationContext.getProperty(AUTH_ERROR_MSG));
         }
     }
 
@@ -296,7 +305,91 @@ public class PushAuthenticatorTest {
                     httpServletRequest, context, "&enrollData=sampleData");
             String expectedQueryString = "sampleQueryString&authenticators=push-notification-authenticator&" +
                     "username=testUser&pushEnrollData=&enrollData=sampleData";
-            assertEquals(expectedQueryString, queryParamsBuilder.toString());
+            assertEquals(queryParamsBuilder.toString(), expectedQueryString);
+        }
+    }
+
+    @Test
+    public void testBuildQueryParamsForIDFUserDeviceEnrolConsentPage() {
+
+            AuthenticatedUser authenticatedUser = new AuthenticatedUser();
+            authenticatedUser.setUserName("testUser");
+            try (
+                    MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
+                    MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
+                    ) {
+                mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
+                                context.getQueryParams(), context.getCallerSessionKey(),
+                                context.getContextIdentifier())).thenReturn("sampleQueryString");
+                mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getMultiOptionURIQueryString(httpServletRequest))
+                        .thenReturn("");
+                StringBuilder queryParamsBuilder = pushAuthenticator.buildQueryParamsForIDFUserDeviceEnrolConsentPage(
+                        authenticatedUser, httpServletRequest, context);
+                String expectedQueryString
+                        = "sampleQueryString&authenticators=push-notification-authenticator&username=testUser";
+                assertEquals(queryParamsBuilder.toString(), expectedQueryString);
+            }
+    }
+
+    @Test
+    public void testTriggerEvent() throws IdentityEventException {
+        AuthenticatedUser user = new AuthenticatedUser();
+        user.setUserName("testUser");
+        user.setUserStoreDomain("PRIMARY");
+        user.setTenantDomain("carbon.super");
+
+        Map<String, Object> eventProperties = new HashMap<>();
+        eventProperties.put("key1", "value1");
+
+        try (MockedStatic<AuthenticatorDataHolder> mockedDataHolder = mockStatic(AuthenticatorDataHolder.class)) {
+            IdentityEventService identityEventService = mock(IdentityEventService.class);
+            AuthenticatorDataHolder dataHolder = mock(AuthenticatorDataHolder.class);
+            mockedDataHolder.when(AuthenticatorDataHolder::getInstance).thenReturn(dataHolder);
+            when(dataHolder.getIdentityEventService()).thenReturn(identityEventService);
+
+            pushAuthenticator.triggerEvent("TEST_EVENT", user, eventProperties);
+
+            verify(identityEventService, times(1)).handleEvent(any(Event.class));
+        }
+    }
+
+    @Test
+    public void testGetClient() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader(USER_AGENT))
+                .thenReturn("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                        "Chrome/58.0.3029.110 Safari/537.3");
+
+        Client client = pushAuthenticator.getClient(request);
+
+        assertNotNull(client);
+        assertEquals("Windows", client.os.family);
+        assertEquals("Chrome", client.userAgent.family);
+    }
+
+    @Test
+    public void testIsProgressiveDeviceEnrollmentEnabled() throws AuthenticationFailedException {
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
+                    .thenReturn("true");
+
+            boolean result = pushAuthenticator.isProgressiveDeviceEnrollmentEnabled("carbon.super");
+
+            assertTrue(result);
+        }
+    }
+
+    @Test
+    public void testIsNumberChallengeEnabled() throws AuthenticationFailedException {
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_NUMBER_CHALLENGE, "carbon.super"))
+                    .thenReturn("true");
+
+            boolean result = pushAuthenticator.isNumberChallengeEnabled("carbon.super");
+
+            assertTrue(result);
         }
     }
 }

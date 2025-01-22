@@ -194,6 +194,7 @@
 
         <testng.version>6.9.10</testng.version>
         <mockito.version>3.8.0</mockito.version>
+        <jacoco.version>0.8.12</jacoco.version>
     </properties>
 
     <build>

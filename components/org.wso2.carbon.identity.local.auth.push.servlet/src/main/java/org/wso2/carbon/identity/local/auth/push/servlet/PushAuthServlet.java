@@ -61,24 +61,16 @@ public class PushAuthServlet extends HttpServlet {
             String deviceId = getDeviceIdFromToken(token);
             JWTClaimsSet claimsSet = getClaimsSetFromAuthToken(token, deviceId);
             String pushAuthId;
-            String tenantDomain;
             try {
                 pushAuthId = claimsSet.getStringClaim(PushServletConstants.TOKEN_PUSH_AUTH_ID);
-                tenantDomain = claimsSet.getStringClaim(PushServletConstants.TOKEN_TENANT_DOMAIN);
             } catch (ParseException e) {
                 throw new ServletException(PushServletConstants.ErrorMessages.ERROR_CODE_PARSE_JWT_FAILED.toString());
             }
 
-            if (StringUtils.isBlank(pushAuthId) || StringUtils.isBlank(tenantDomain)) {
+            if (StringUtils.isBlank(pushAuthId)) {
 
-                String errorMessage;
-                if (StringUtils.isBlank(pushAuthId)) {
-                    errorMessage = String.format(
-                            PushServletConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND.toString(), deviceId);
-                } else {
-                    errorMessage = String.format(
-                            PushServletConstants.ErrorMessages.ERROR_CODE_TENANT_ID_NOT_FOUND.toString(), deviceId);
-                }
+                String errorMessage = String.format(
+                        PushServletConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND.toString(), deviceId);
                 if (log.isDebugEnabled()) {
                     log.debug(errorMessage);
                 }

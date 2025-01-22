@@ -69,8 +69,8 @@ import java.util.UUID;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ERROR_MSG;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IS_IDF_INITIATED_FROM_AUTHENTICATOR;
-import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.SHOW_AUTH_FAILURE_REASON_PAGE;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.OPERATION_STATUS;
@@ -145,6 +145,10 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_I18_KEY;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAILED_ATTEMPTS_CLAIM;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_INTERNAL_ERROR;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_NUMBER_CHALLENGE_FAILED;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_USER_DENIED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_ID;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_ID_PARAM;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_ID;
@@ -454,19 +458,22 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
         } catch (AccountLockServiceException e) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_GETTING_ACCOUNT_STATE, e);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR, context,
+                    ERROR_CODE_GETTING_ACCOUNT_STATE, e);
         }
 
         String pushAuthId = context.getProperty(PUSH_AUTH_ID).toString();
         if (StringUtils.isBlank(pushAuthId)) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
+                    context, ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND);
         }
 
         PushAuthContext pushAuthContext = pushAuthContextManager.getContext(pushAuthId);
         if (pushAuthContext == null) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_PUSH_AUTH_CONTEXT_NOT_FOUND,
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
+                    context, ERROR_CODE_PUSH_AUTH_CONTEXT_NOT_FOUND,
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
         }
 
@@ -483,14 +490,16 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         String authResponseToken = pushAuthContext.getToken();
         if (StringUtils.isBlank(authResponseToken)) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_PUSH_AUTH_RESPONSE_TOKEN_NOT_FOUND,
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR, context,
+                    ERROR_CODE_PUSH_AUTH_RESPONSE_TOKEN_NOT_FOUND,
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
         }
 
         String deviceId = pushAuthContext.getDeviceId();
         if (StringUtils.isBlank(deviceId)) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_DEVICE_ID_NOT_FOUND,
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_DEVICE_ID_NOT_FOUND,
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
         }
 
@@ -499,7 +508,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             publicKey = AuthenticatorDataHolder.getInstance().getDeviceHandlerService().getPublicKey(deviceId);
         } catch (PushDeviceHandlerException e) {
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_ERROR_GETTING_USER_DEVICE_PUBLIC_KEY,
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR, context,
+                    ERROR_CODE_ERROR_GETTING_USER_DEVICE_PUBLIC_KEY,
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
         }
 
@@ -508,11 +518,13 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             claimsSet = PushChallengeValidator.getValidatedClaimSet(authResponseToken, publicKey);
             if (claimsSet == null) {
                 handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
-                throw handleAuthErrorReasonScenario(context, ERROR_CODE_CLAIMSET_NOT_FOUND_IN_RESPONSE_TOKEN, deviceId);
+                throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                        ERROR_CODE_CLAIMSET_NOT_FOUND_IN_RESPONSE_TOKEN, deviceId);
             }
         } catch (PushTokenValidationException e) {
             handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_RESPONSE_TOKEN_VALIDATION_FAILED, deviceId);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_RESPONSE_TOKEN_VALIDATION_FAILED, deviceId);
         }
 
         String authChallengeFromContext = pushAuthContext.getChallenge();
@@ -523,7 +535,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 LOG.debug(String.format("Push authentication request for user: %s failed due to challenge validation.",
                         authenticatedUserFromContext.getUserName()));
             }
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED, deviceId);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED, deviceId);
         }
 
         String authStatus;
@@ -531,14 +544,16 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             authStatus = PushChallengeValidator.getClaimFromClaimSet(claimsSet, TOKEN_AUTH_STATUS, deviceId);
         } catch (PushTokenValidationException e) {
             handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_ERROR_GETTING_AUTH_STATUS_FROM_TOKEN, deviceId);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_ERROR_GETTING_AUTH_STATUS_FROM_TOKEN, deviceId);
         }
         // Throw error when status is neither APPROVED nor DENIED.
         if (!AUTH_REQUEST_STATUS_APPROVED.equalsIgnoreCase(authStatus)
                 && !AUTH_REQUEST_STATUS_DENIED.equalsIgnoreCase(authStatus)) {
 
             handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
-            throw handleAuthErrorReasonScenario(context, ERROR_CODE_ERROR_INVALID_AUTH_STATUS_FROM_TOKEN, deviceId);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_ERROR_INVALID_AUTH_STATUS_FROM_TOKEN, deviceId);
         }
 
         if (AUTH_REQUEST_STATUS_APPROVED.equals(authStatus)) {
@@ -556,7 +571,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                         LOG.debug(String.format("Push authentication request for user: %s failed due to number " +
                                 "challenge validation.", authenticatedUserFromContext.getUserName()));
                     }
-                    throw handleAuthErrorReasonScenario(
+                    throw handleAuthErrorScenario(
+                            PUSH_AUTH_FAIL_NUMBER_CHALLENGE_FAILED,
                             context, ERROR_CODE_PUSH_NUMBER_CHALLENGE_VALIDATION_FAILED, deviceId);
                 }
             }
@@ -584,7 +600,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
             // At this point, authentication is failed. Hence, initiate authentication failure handling.
             handlePushAuthVerificationFail(authenticatingUser, isInitialFederationAttempt);
-            throw handleAuthErrorReasonScenario(context,
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_USER_DENIED, context,
                     ERROR_CODE_PUSH_AUTH_USER_DENIED, authenticatingUser.getUserName());
         }
     }
@@ -621,12 +637,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
     @Override
     protected boolean retryAuthenticationEnabled() {
-
-        return true;
-    }
-
-    @Override
-    protected boolean redirectToAuthFailureReasonPage() {
 
         return true;
     }
@@ -764,11 +774,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         return handleAuthErrorScenario(error, null, data);
     }
 
-    protected AuthenticationFailedException handleAuthErrorReasonScenario(AuthenticationContext context,
-                                                                          AuthenticatorConstants.ErrorMessages error,
-                                                                          Object... data) {
+    protected AuthenticationFailedException handleAuthErrorScenario(String errorMsg, AuthenticationContext context,
+                                                                    AuthenticatorConstants.ErrorMessages error,
+                                                                    Object... data) {
 
-        context.setProperty(SHOW_AUTH_FAILURE_REASON_PAGE, true);
+        context.setProperty(SKIP_RETRY_FROM_AUTHENTICATOR, true);
+        context.setProperty(AUTH_ERROR_MSG, errorMsg);
         return handleAuthErrorScenario(error, data);
     }
 
@@ -1041,8 +1052,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             queryParamsBuilder.append(NUMBER_CHALLENGE_PARAM).append(numberChallenge);
         }
 
-        if (context.isRetrying() && StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
-                RESEND_PUSH_NOTIFICATION.getValue().equals(request.getParameter(SCENARIO))) {
+        boolean isResend = StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
+                RESEND_PUSH_NOTIFICATION.getValue().equals(request.getParameter(SCENARIO));
+        if (context.isRetrying() && !isResend) {
             queryParamsBuilder.append(RETRY_QUERY_PARAMS);
         }
 
@@ -1100,21 +1112,21 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         return queryParamsBuilder;
     }
 
-    protected void handleIDFUserDeviceEnrolConsentScenario(AuthenticatedUser authenticatedUser,
+    /**
+     * Handle the scenario when no device is found for the user and progressive device enrollment is enabled.
+     *
+     * @param request  HttpServletRequest.
+     * @param response HttpServletResponse.
+     * @param context  AuthenticationContext.
+     */
+    private void handleIDFUserDeviceEnrolConsentScenario(AuthenticatedUser authenticatedUser,
                                                            HttpServletResponse response, HttpServletRequest request,
                                                            AuthenticationContext context)
             throws AuthenticationFailedException {
 
         try {
-            StringBuilder queryParamsBuilder = new StringBuilder();
-            String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
-                    context.getCallerSessionKey(), context.getContextIdentifier());
-            String multiOptionURI = AuthenticatorUtils.getMultiOptionURIQueryString(request);
-            queryParamsBuilder.append(queryParams)
-                    .append(AUTHENTICATORS_QUERY_PARAM).append(getName())
-                    .append(USERNAME_PARAM).append(authenticatedUser.getUserName())
-                    .append(multiOptionURI);
-
+            StringBuilder queryParamsBuilder =  buildQueryParamsForIDFUserDeviceEnrolConsentPage(authenticatedUser,
+                    request, context);
             String pushDeviceRegistrationPageUrl = getPushDeviceEnrollConsentPageUrl();
             String url = FrameworkUtils.appendQueryParamsStringToUrl(pushDeviceRegistrationPageUrl,
                     queryParamsBuilder.toString());
@@ -1125,28 +1137,26 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
     }
 
     /**
-     * Check if the push authenticator is the primary factor of authentication.
+     * Build query params for the IDF user device enrollment consent page.
      *
-     * @param context   Authentication Context.
-     * @return True if the push authenticator is the primary factor of authentication.
+     * @param authenticatedUser Authenticated user.
+     * @param request           HttpServletRequest.
+     * @param context           AuthenticationContext.
+     * @return Query params for the IDF user device enrollment consent page.
      */
-    protected boolean isPushAuthenticatorAsFirstFactor(AuthenticationContext context) {
+    protected StringBuilder buildQueryParamsForIDFUserDeviceEnrolConsentPage(AuthenticatedUser authenticatedUser,
+                                                                            HttpServletRequest request,
+                                                                            AuthenticationContext context) {
 
-        return (context.getCurrentStep() == 1 || isPreviousIdPAuthenticationFlowHandler(context));
-    }
-
-    /**
-     * Check if the current authentication attempt is performed by a user who is not in the system.
-     *
-     * @param context               Authentication Context.
-     * @param authenticatedUser     User who is attempting the authentication.
-     * @return True if the authentication attempt is done by an invalid user.
-     */
-    private boolean isLoginAttemptByInvalidUser(AuthenticationContext context,
-                                                AuthenticatedUser authenticatedUser) {
-
-        return authenticatedUser == null
-                && Boolean.parseBoolean(String.valueOf(context.getProperty(IS_LOGIN_ATTEMPT_BY_INVALID_USER)));
+        StringBuilder queryParamsBuilder = new StringBuilder();
+        String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
+                context.getCallerSessionKey(), context.getContextIdentifier());
+        String multiOptionURI = AuthenticatorUtils.getMultiOptionURIQueryString(request);
+        queryParamsBuilder.append(queryParams)
+                .append(AUTHENTICATORS_QUERY_PARAM).append(getName())
+                .append(USERNAME_PARAM).append(authenticatedUser.getUserName())
+                .append(multiOptionURI);
+        return queryParamsBuilder;
     }
 
     /**
@@ -1579,7 +1589,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @param request HTTP request
      * @return UA Client
      */
-    private Client getClient(HttpServletRequest request) {
+    protected Client getClient(HttpServletRequest request) {
 
         String userAgentString = request.getHeader(USER_AGENT);
         try {
@@ -1598,7 +1608,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @return True if the progressive device enrollment is enabled.
      * @throws AuthenticationFailedException If an error occurred while checking the configuration.
      */
-    private boolean isProgressiveDeviceEnrollmentEnabled(String tenantDomain) throws AuthenticationFailedException {
+    protected boolean isProgressiveDeviceEnrollmentEnabled(String tenantDomain) throws AuthenticationFailedException {
 
         try {
             return Boolean.parseBoolean(
@@ -1616,7 +1626,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @return True if the number challenge is enabled.
      * @throws AuthenticationFailedException If an error occurred while checking the configuration.
      */
-    private boolean isNumberChallengeEnabled(String tenantDomain) throws AuthenticationFailedException {
+    protected boolean isNumberChallengeEnabled(String tenantDomain) throws AuthenticationFailedException {
 
         try {
             return Boolean.parseBoolean(

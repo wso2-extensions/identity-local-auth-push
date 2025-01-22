@@ -12,9 +12,9 @@ public class PushServletConstants {
     public static final String MEDIA_TYPE_JSON = "application/json";
     public static final String AUTH_RESPONSE = "authResponse";
 
-    public static final String TOKEN_DEVICE_ID = "did";
-    public static final String TOKEN_PUSH_AUTH_ID = "pid";
-    public static final String TOKEN_TENANT_DOMAIN = "td";
+    public static final String TOKEN_DEVICE_ID = "deviceId";
+    public static final String TOKEN_PUSH_AUTH_ID = "pushId";
+    public static final String TOKEN_TENANT_DOMAIN = "tenantDomain";
 
     /**
      * Object holding authentication mobile response status.
