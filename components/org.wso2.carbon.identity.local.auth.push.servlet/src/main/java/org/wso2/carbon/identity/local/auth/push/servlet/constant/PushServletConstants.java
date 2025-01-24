@@ -83,8 +83,7 @@ public class PushServletConstants {
         ERROR_CODE_REQUEST_CONTENT_READ_FAILED(
                 "PBA-15009",
                 "Error occurred when reading the request content."
-        ),
-        ;
+        );
 
         private final String code;
         private final String message;

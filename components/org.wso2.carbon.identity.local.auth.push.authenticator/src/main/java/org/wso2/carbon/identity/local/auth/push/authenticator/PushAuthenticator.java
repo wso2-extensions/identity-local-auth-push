@@ -138,7 +138,6 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_GETTING_ACCOUNT_STATE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_INVALID_FEDERATED_AUTHENTICATOR;
-import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_FEDERATED_USER;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_CONTEXT_NOT_FOUND;

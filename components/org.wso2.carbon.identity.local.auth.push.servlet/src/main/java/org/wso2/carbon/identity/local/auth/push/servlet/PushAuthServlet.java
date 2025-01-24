@@ -55,14 +55,15 @@ public class PushAuthServlet extends HttpServlet {
 
     /**
      * Handle the POST request sent from the  device.
+     * Expected Payload:
+     * {
+     * "authResponse": "JWT Token for push auth"
+     * }
      *
      * @param request  HTTP request
      * @param response HTTP response
      * @throws ServletException if an error occurs when handling the request
      * @throws IOException      if an I/O error occurs when handling the request
-     *
-     * Expected Payload:
-     * - authResponse: JWT token containing the authentication related information.
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -194,8 +195,8 @@ public class PushAuthServlet extends HttpServlet {
     /**
      * Add the received auth response token to the authentication context.
      *
-     * @param pushAuthId   Push authentication ID
-     * @param token        Auth response token
+     * @param pushAuthId Push authentication ID
+     * @param token      Auth response token
      */
     private void addToContext(String pushAuthId, String token) {
 

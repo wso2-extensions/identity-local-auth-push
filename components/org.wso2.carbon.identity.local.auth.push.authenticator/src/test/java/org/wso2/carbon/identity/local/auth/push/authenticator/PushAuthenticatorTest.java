@@ -90,25 +90,19 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 public class PushAuthenticatorTest {
 
     @Mock
-    private PushAuthContextManager pushAuthContextManager;
-
-    @Mock
-    private AuthenticationContext context;
-
-    @Mock
-    private HttpServletRequest httpServletRequest;
-
-    @Mock
-    private HttpServletResponse httpServletResponse;
-
-    @Mock
-    private ServiceURLBuilder serviceURLBuilder;
-
-    @Mock
     ServiceURL serviceURL;
-
     @InjectMocks
     PushAuthenticator pushAuthenticator;
+    @Mock
+    private PushAuthContextManager pushAuthContextManager;
+    @Mock
+    private AuthenticationContext context;
+    @Mock
+    private HttpServletRequest httpServletRequest;
+    @Mock
+    private HttpServletResponse httpServletResponse;
+    @Mock
+    private ServiceURLBuilder serviceURLBuilder;
 
     @BeforeTest
     public void setUp() throws NoSuchFieldException, IllegalAccessException {
@@ -230,7 +224,7 @@ public class PushAuthenticatorTest {
 
         try (
                 MockedStatic<PrivilegedCarbonContext> mockedCarbonContext
-                     = Mockito.mockStatic(PrivilegedCarbonContext.class);
+                        = Mockito.mockStatic(PrivilegedCarbonContext.class);
                 MockedStatic<ServiceURLBuilder> mockedServiceURLBuilder = mockStatic(ServiceURLBuilder.class)
         ) {
 
@@ -274,9 +268,9 @@ public class PushAuthenticatorTest {
         try (
                 MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
                 MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
-                ) {
+        ) {
             mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
-                    context.getQueryParams(), context.getCallerSessionKey(), context.getContextIdentifier()))
+                            context.getQueryParams(), context.getCallerSessionKey(), context.getContextIdentifier()))
                     .thenReturn("sampleQueryString");
             mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getMultiOptionURIQueryString(httpServletRequest))
                     .thenReturn("");
@@ -303,7 +297,7 @@ public class PushAuthenticatorTest {
         try (
                 MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
                 MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
-                ) {
+        ) {
             mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
                             context.getQueryParams(), context.getCallerSessionKey(), context.getContextIdentifier()))
                     .thenReturn("sampleQueryString");
@@ -319,6 +313,7 @@ public class PushAuthenticatorTest {
 
     @Test
     public void testTriggerEvent() throws IdentityEventException {
+
         AuthenticatedUser user = new AuthenticatedUser();
         user.setUserName("testUser");
         user.setUserStoreDomain("PRIMARY");
@@ -341,6 +336,7 @@ public class PushAuthenticatorTest {
 
     @Test
     public void testGetClient() {
+
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader(USER_AGENT))
                 .thenReturn("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
@@ -355,9 +351,10 @@ public class PushAuthenticatorTest {
 
     @Test
     public void testIsProgressiveDeviceEnrollmentEnabled() throws AuthenticationFailedException {
+
         try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
             mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
-                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
+                            ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
                     .thenReturn("true");
 
             boolean result = pushAuthenticator.isProgressiveDeviceEnrollmentEnabled("carbon.super");
@@ -368,9 +365,10 @@ public class PushAuthenticatorTest {
 
     @Test
     public void testIsNumberChallengeEnabled() throws AuthenticationFailedException {
+
         try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
             mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
-                    ENABLE_PUSH_NUMBER_CHALLENGE, "carbon.super"))
+                            ENABLE_PUSH_NUMBER_CHALLENGE, "carbon.super"))
                     .thenReturn("true");
 
             boolean result = pushAuthenticator.isNumberChallengeEnabled("carbon.super");

@@ -151,10 +151,6 @@
     </dependencyManagement>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
         <carbon.identity.framework.version>7.6.9</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[7.5.0, 8.0.0)</carbon.identity.framework.imp.pkg.version.range>
