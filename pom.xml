@@ -152,7 +152,7 @@
 
     <properties>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
-        <carbon.identity.framework.version>7.6.9</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.7.132</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[7.5.0, 8.0.0)</carbon.identity.framework.imp.pkg.version.range>
         <identity.extension.utils>1.0.12</identity.extension.utils>
         <identity.extension.utils.import.version.range>[1.0.8,2.0.0)</identity.extension.utils.import.version.range>
@@ -170,7 +170,7 @@
         <commons.logging.version>1.2</commons.logging.version>
         <org.apache.commons.logging.range>[1.2.0,2.0.0)</org.apache.commons.logging.range>
 
-        <identity.notification.push.version>1.0.0-SNAPSHOT</identity.notification.push.version>
+        <identity.notification.push.version>1.0.2</identity.notification.push.version>
         <identity.notification.push.import.version.range>[1.0.0,2.0.0)</identity.notification.push.import.version.range>
 
         <commons.logging.version>1.2</commons.logging.version>
