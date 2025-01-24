@@ -29,14 +29,12 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.http.HttpService;
-import org.osgi.service.http.NamespaceException;
 import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.servlet.PushAuthServlet;
 import org.wso2.carbon.identity.local.auth.push.servlet.PushStatusServlet;
 import org.wso2.carbon.identity.notification.push.device.handler.DeviceHandlerService;
 
 import javax.servlet.Servlet;
-import javax.servlet.ServletException;
 
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_AUTHENTICATE_SERVLET_URL;
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_STATUS_SERVLET_URL;
@@ -72,7 +70,7 @@ public class PushServletServiceComponent {
                         PUSH_AUTHENTICATE_SERVLET_URL, PUSH_STATUS_SERVLET_URL));
 
             }
-        } catch (ServletException | NamespaceException e) {
+        } catch (Exception e) {
             String errMsg = "Error when registering Push endpoint services via the HttpService.";
             log.error(errMsg, e);
             throw new RuntimeException(errMsg, e);

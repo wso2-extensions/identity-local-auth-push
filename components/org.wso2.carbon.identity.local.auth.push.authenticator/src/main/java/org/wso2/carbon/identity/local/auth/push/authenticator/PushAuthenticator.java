@@ -788,7 +788,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
     protected AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error) {
 
-        return handleAuthErrorScenario(error, (Object) null);
+        return handleAuthErrorScenario(error, null);
     }
 
     protected AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
@@ -1040,7 +1040,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     queryParamsBuilder.toString());
             response.sendRedirect(url);
         } catch (IOException e) {
-            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE, e, (Object) null);
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE, e, null);
         }
     }
 
@@ -1104,7 +1104,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     queryParamsBuilder.toString());
             response.sendRedirect(url);
         } catch (IOException e) {
-            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, (Object) null);
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, null);
         }
     }
 
@@ -1154,7 +1154,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     queryParamsBuilder.toString());
             response.sendRedirect(url);
         } catch (IOException e) {
-            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, (Object) null);
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, null);
         }
     }
 
@@ -1200,7 +1200,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         // If the user is federated, we need to check whether the user is already provisioned to the organization.
         String federatedUsername = FederatedAuthenticatorUtil.getLoggedInFederatedUser(context);
         if (StringUtils.isBlank(federatedUsername)) {
-            throw handleAuthErrorScenario(ERROR_CODE_NO_FEDERATED_USER);
+            return StringUtils.EMPTY;
         }
         String associatedLocalUsername =
                 FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(MultitenantUtils.
@@ -1394,7 +1394,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             String url = FrameworkUtils.appendQueryParamsStringToUrl(errorPageUrl, queryString);
             response.sendRedirect(url);
         } catch (IOException e) {
-            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_ERROR_PAGE, e, (Object) null);
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_ERROR_PAGE, e, null);
         }
     }
 
