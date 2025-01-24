@@ -1,0 +1,379 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.wso2.carbon.identity.local.auth.push.authenticator;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import org.wso2.carbon.base.CarbonBaseConstants;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.ExternalIdPConfig;
+import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
+import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
+import org.wso2.carbon.identity.core.ServiceURL;
+import org.wso2.carbon.identity.core.ServiceURLBuilder;
+import org.wso2.carbon.identity.core.URLBuilderException;
+import org.wso2.carbon.identity.event.IdentityEventException;
+import org.wso2.carbon.identity.event.event.Event;
+import org.wso2.carbon.identity.event.services.IdentityEventService;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
+import org.wso2.carbon.identity.local.auth.push.authenticator.internal.AuthenticatorDataHolder;
+import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
+import org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils;
+import ua_parser.Client;
+
+import java.lang.reflect.Field;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator.SKIP_RETRY_FROM_AUTHENTICATOR;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ERROR_MSG;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_FRIENDLY_NAME;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_I18_KEY;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_FAIL_INTERNAL_ERROR;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_ID;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_WAIT_PAGE;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.SCENARIO;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.LOGOUT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PUSH_DEVICE_ENROLLMENT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.SEND_PUSH_NOTIFICATION;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USER_AGENT;
+
+/**
+ * Test class for PushAuthenticator.
+ */
+public class PushAuthenticatorTest {
+
+    @Mock
+    ServiceURL serviceURL;
+    @InjectMocks
+    PushAuthenticator pushAuthenticator;
+    @Mock
+    private PushAuthContextManager pushAuthContextManager;
+    @Mock
+    private AuthenticationContext context;
+    @Mock
+    private HttpServletRequest httpServletRequest;
+    @Mock
+    private HttpServletResponse httpServletResponse;
+    @Mock
+    private ServiceURLBuilder serviceURLBuilder;
+
+    @BeforeTest
+    public void setUp() throws NoSuchFieldException, IllegalAccessException {
+
+        MockitoAnnotations.openMocks(this);
+
+        Field contextManagerField = PushAuthenticator.class.getDeclaredField("pushAuthContextManager");
+        contextManagerField.setAccessible(true);
+        contextManagerField.set(null, pushAuthContextManager);
+
+        String carbonHome = Paths.get(System.getProperty("user.dir"), "target", "test-classes").toString();
+        System.setProperty(CarbonBaseConstants.CARBON_HOME, carbonHome);
+        System.setProperty(CarbonBaseConstants.CARBON_CONFIG_DIR_PATH, Paths.get(carbonHome, "conf").toString());
+    }
+
+    @Test
+    public void testGetContextIdentifier() {
+
+        when(httpServletRequest.getRequestedSessionId()).thenReturn("sampleSessionId");
+        assertNotNull(pushAuthenticator.getContextIdentifier(httpServletRequest));
+        assertEquals("sampleSessionId", pushAuthenticator.getContextIdentifier(httpServletRequest));
+    }
+
+    @Test
+    public void testGetFriendlyName() {
+
+        assertEquals(PUSH_AUTHENTICATOR_FRIENDLY_NAME, pushAuthenticator.getFriendlyName());
+    }
+
+    @Test
+    public void testGetName() {
+
+        assertEquals(PUSH_AUTHENTICATOR_NAME, pushAuthenticator.getName());
+    }
+
+    @Test
+    public void testGetI18nKey() {
+
+        assertEquals(PUSH_AUTHENTICATOR_I18_KEY, pushAuthenticator.getI18nKey());
+    }
+
+    @Test
+    public void testIsAPIBasedAuthenticationSupported() {
+
+        assertTrue(pushAuthenticator.isAPIBasedAuthenticationSupported());
+    }
+
+    @Test
+    public void testRetryAuthenticationEnabled() {
+
+        assertTrue(pushAuthenticator.retryAuthenticationEnabled());
+    }
+
+    @Test
+    public void testCanHandle() {
+
+        when(httpServletRequest.getParameter(USERNAME)).thenReturn("sampleUser");
+        when(httpServletRequest.getParameter(SCENARIO)).thenReturn(SEND_PUSH_NOTIFICATION.getValue());
+        assertTrue(pushAuthenticator.canHandle(httpServletRequest));
+    }
+
+    @Test
+    public void testCanHandleWithInvalidScenario() {
+
+        when(httpServletRequest.getParameter(USERNAME)).thenReturn("sampleUser");
+        when(httpServletRequest.getParameter(SCENARIO)).thenReturn("invalidScenario");
+        assertTrue(pushAuthenticator.canHandle(httpServletRequest));
+    }
+
+    @Test
+    public void testCanHandleFailure() {
+
+        when(httpServletRequest.getParameter(USERNAME)).thenReturn(null);
+        when(httpServletRequest.getParameter(SCENARIO)).thenReturn("invalidScenario");
+        assertFalse(pushAuthenticator.canHandle(httpServletRequest));
+    }
+
+    @Test
+    public void testResolveScenario() {
+
+        when(context.isLogoutRequest()).thenReturn(true);
+        assertEquals(LOGOUT, pushAuthenticator.resolveScenario(httpServletRequest, context));
+
+        when(context.isLogoutRequest()).thenReturn(false);
+        assertEquals(SEND_PUSH_NOTIFICATION, pushAuthenticator.resolveScenario(httpServletRequest, context));
+
+        when(httpServletRequest.getParameter(SCENARIO)).thenReturn(PUSH_DEVICE_ENROLLMENT.getValue());
+        assertEquals(PUSH_DEVICE_ENROLLMENT, pushAuthenticator.resolveScenario(httpServletRequest, context));
+    }
+
+    @Test
+    public void testHandleAuthErrorScenario() {
+
+        AuthenticationContext authenticationContext = new AuthenticationContext();
+        try {
+            throw pushAuthenticator.handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
+                    authenticationContext, ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND);
+        } catch (AuthenticationFailedException e) {
+            assertTrue(authenticationContext.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR) != null
+                    && (Boolean) authenticationContext.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR));
+            assertNotNull(authenticationContext.getProperty(AUTH_ERROR_MSG));
+        }
+    }
+
+    @Test
+    public void testGetAuthInitiationData() throws AuthenticationFailedException, URLBuilderException {
+
+        ExternalIdPConfig externalIdPConfig = mock(ExternalIdPConfig.class);
+        when(context.getExternalIdP()).thenReturn(externalIdPConfig);
+        when(externalIdPConfig.getIdPName()).thenReturn("externalIdP");
+
+        when(context.getProperty(PUSH_AUTH_ID)).thenReturn(new Object());
+        when(context.getProperty(PUSH_AUTH_ID).toString()).thenReturn("samplePushAuthId");
+
+        PushAuthContext pushAuthContext = new PushAuthContext();
+        when(pushAuthContextManager.getContext(anyString())).thenReturn(pushAuthContext);
+
+        when(context.getTenantDomain()).thenReturn("carbon.super");
+
+        try (
+                MockedStatic<PrivilegedCarbonContext> mockedCarbonContext
+                        = Mockito.mockStatic(PrivilegedCarbonContext.class);
+                MockedStatic<ServiceURLBuilder> mockedServiceURLBuilder = mockStatic(ServiceURLBuilder.class)
+        ) {
+
+            PrivilegedCarbonContext privilegedCarbonContext = mock(PrivilegedCarbonContext.class);
+            mockedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
+                    .thenReturn(privilegedCarbonContext);
+            when(privilegedCarbonContext.getOrganizationId()).thenReturn(null);
+
+            mockedServiceURLBuilder.when(ServiceURLBuilder::create).thenReturn(serviceURLBuilder);
+            when(serviceURLBuilder.setTenant(anyString())).thenReturn(serviceURLBuilder);
+            when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
+            when(serviceURLBuilder.build()).thenReturn(serviceURL);
+            when(serviceURL.getAbsolutePublicURL()).thenReturn("https://sampleURL");
+
+            Optional<AuthenticatorData> authenticatorData = pushAuthenticator.getAuthInitiationData(context);
+            assertTrue(authenticatorData.isPresent());
+
+            AuthenticatorData data = authenticatorData.get();
+            assertEquals(PUSH_AUTHENTICATOR_NAME, data.getName());
+            assertEquals(PUSH_AUTHENTICATOR_FRIENDLY_NAME, data.getDisplayName());
+            assertEquals("externalIdP", data.getIdp());
+            assertEquals(PUSH_AUTHENTICATOR_I18_KEY, data.getI18nKey());
+            assertEquals(INTERNAL_PROMPT, data.getPromptType());
+            assertNotNull(data.getAuthParams());
+            assertNotNull(data.getRequiredParams());
+            assertEquals(SCENARIO, data.getRequiredParams().get(0));
+            assertNotNull(data.getAdditionalData());
+            assertNotNull(data.getAdditionalData().getAdditionalAuthenticationParams());
+            assertEquals("https://sampleURL",
+                    data.getAdditionalData().getAdditionalAuthenticationParams().get("statusEndpoint"));
+        }
+    }
+
+    @Test
+    public void testBuildQueryParamsForPushWaitPage() throws AuthenticationFailedException {
+
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser();
+        authenticatedUser.setUserName("testUser");
+        String numberChallengeValue = "37";
+        String pushId = "48f5e4fe-a3fb-4757-90fd-12bd9104cbf4";
+        try (
+                MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
+                MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
+        ) {
+            mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
+                            context.getQueryParams(), context.getCallerSessionKey(), context.getContextIdentifier()))
+                    .thenReturn("sampleQueryString");
+            mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getMultiOptionURIQueryString(httpServletRequest))
+                    .thenReturn("");
+            when(context.getTenantDomain()).thenReturn("carbon.super");
+            mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_NUMBER_CHALLENGE, "carbon.super")).thenReturn("true");
+            when(context.isRetrying()).thenReturn(false);
+            String pushAuthWaitPageUrl = "https://localhost:9443/" + PUSH_AUTH_WAIT_PAGE;
+            mockedAuthenticatorUtils.when(AuthenticatorUtils::getPushAuthWaitPageUrl)
+                    .thenReturn(pushAuthWaitPageUrl);
+            StringBuilder queryParamsBuilder = pushAuthenticator.buildQueryParamsForPushWaitPage(authenticatedUser,
+                    httpServletRequest, context, pushId, numberChallengeValue);
+            String expectedQueryString = "sampleQueryString&authenticators=push-notification-authenticator&" +
+                    "username=testUser&pushAuthId=48f5e4fe-a3fb-4757-90fd-12bd9104cbf4&numberChallenge=37";
+            assertEquals(expectedQueryString, queryParamsBuilder.toString());
+        }
+    }
+
+    @Test
+    public void testBuildQueryParamsForRegistrationPage() {
+
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser();
+        authenticatedUser.setUserName("testUser");
+        try (
+                MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
+                MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
+        ) {
+            mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
+                            context.getQueryParams(), context.getCallerSessionKey(), context.getContextIdentifier()))
+                    .thenReturn("sampleQueryString");
+            mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getMultiOptionURIQueryString(httpServletRequest))
+                    .thenReturn("");
+            StringBuilder queryParamsBuilder = pushAuthenticator.buildQueryParamsForRegistrationPage(authenticatedUser,
+                    httpServletRequest, context, "&enrollData=sampleData");
+            String expectedQueryString = "sampleQueryString&authenticators=push-notification-authenticator&" +
+                    "username=testUser&pushEnrollData=&enrollData=sampleData";
+            assertEquals(queryParamsBuilder.toString(), expectedQueryString);
+        }
+    }
+
+    @Test
+    public void testTriggerEvent() throws IdentityEventException {
+
+        AuthenticatedUser user = new AuthenticatedUser();
+        user.setUserName("testUser");
+        user.setUserStoreDomain("PRIMARY");
+        user.setTenantDomain("carbon.super");
+
+        Map<String, Object> eventProperties = new HashMap<>();
+        eventProperties.put("key1", "value1");
+
+        try (MockedStatic<AuthenticatorDataHolder> mockedDataHolder = mockStatic(AuthenticatorDataHolder.class)) {
+            IdentityEventService identityEventService = mock(IdentityEventService.class);
+            AuthenticatorDataHolder dataHolder = mock(AuthenticatorDataHolder.class);
+            mockedDataHolder.when(AuthenticatorDataHolder::getInstance).thenReturn(dataHolder);
+            when(dataHolder.getIdentityEventService()).thenReturn(identityEventService);
+
+            pushAuthenticator.triggerEvent("TEST_EVENT", user, eventProperties);
+
+            verify(identityEventService, times(1)).handleEvent(any(Event.class));
+        }
+    }
+
+    @Test
+    public void testGetClient() {
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader(USER_AGENT))
+                .thenReturn("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                        "Chrome/58.0.3029.110 Safari/537.3");
+
+        Client client = pushAuthenticator.getClient(request);
+
+        assertNotNull(client);
+        assertEquals("Windows", client.os.family);
+        assertEquals("Chrome", client.userAgent.family);
+    }
+
+    @Test
+    public void testIsProgressiveDeviceEnrollmentEnabled() throws AuthenticationFailedException {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                            ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
+                    .thenReturn("true");
+
+            boolean result = pushAuthenticator.isProgressiveDeviceEnrollmentEnabled("carbon.super");
+
+            assertTrue(result);
+        }
+    }
+
+    @Test
+    public void testIsNumberChallengeEnabled() throws AuthenticationFailedException {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                            ENABLE_PUSH_NUMBER_CHALLENGE, "carbon.super"))
+                    .thenReturn("true");
+
+            boolean result = pushAuthenticator.isNumberChallengeEnabled("carbon.super");
+
+            assertTrue(result);
+        }
+    }
+}
