@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.servlet;
 
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -6,7 +24,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.JSONObject;
-import org.wso2.carbon.identity.local.auth.push.authenticator.PushAuthContextManager;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants;
 import org.wso2.carbon.identity.local.auth.push.servlet.impl.PushAuthStatusCacheManagerImpl;
@@ -27,7 +45,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.AUTH_RESPONSE;
 
 /**
- * Servlet for handling authentication requests sent from mobile device.
+ * Servlet for handling authentication requests sent from device.
  */
 public class PushAuthServlet extends HttpServlet {
 
@@ -35,14 +53,33 @@ public class PushAuthServlet extends HttpServlet {
     private static final Log log = LogFactory.getLog(PushAuthServlet.class);
     private static final PushAuthStatusCacheManager pushAuthStatusCacheManager = new PushAuthStatusCacheManagerImpl();
 
+    /**
+     * Handle the POST request sent from the  device.
+     *
+     * @param request  HTTP request
+     * @param response HTTP response
+     * @throws ServletException if an error occurs when handling the request
+     * @throws IOException      if an I/O error occurs when handling the request
+     *
+     * Expected Payload:
+     * - authResponse: JWT token containing the authentication related information.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        handleMobileResponse(request, response);
+        handleDeviceResponse(request, response);
     }
 
-    private void handleMobileResponse(HttpServletRequest request, HttpServletResponse response)
+    /**
+     * Handle the authentication response sent from the device.
+     *
+     * @param request  HTTP request
+     * @param response HTTP response
+     * @throws IOException      if an I/O error occurs when handling the request
+     * @throws ServletException if an error occurs when handling the request
+     */
+    private void handleDeviceResponse(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
 
         JSONObject jsonContent = readJsonContentInRequest(request);
@@ -84,7 +121,7 @@ public class PushAuthServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_OK);
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Completed processing auth response from mobile app.");
+                    log.debug("Completed processing auth response from the device.");
                 }
             }
         }
@@ -96,7 +133,7 @@ public class PushAuthServlet extends HttpServlet {
      * @param request HTTP request
      * @return JSON content in the request
      */
-    private JSONObject readJsonContentInRequest(HttpServletRequest request) {
+    private JSONObject readJsonContentInRequest(HttpServletRequest request) throws ServletException {
 
         StringBuilder stringBuilder = new StringBuilder();
         String line;
@@ -105,7 +142,8 @@ public class PushAuthServlet extends HttpServlet {
                 stringBuilder.append(line);
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ServletException(PushServletConstants
+                    .ErrorMessages.ERROR_CODE_REQUEST_CONTENT_READ_FAILED.toString(), e);
         }
         String jsonString = stringBuilder.toString();
         return new JSONObject(jsonString);

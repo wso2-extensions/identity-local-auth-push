@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.servlet.internal;
 
 import org.apache.commons.logging.Log;
@@ -11,12 +29,14 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.http.HttpService;
-import org.wso2.carbon.identity.local.auth.push.authenticator.PushAuthContextManager;
+import org.osgi.service.http.NamespaceException;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.servlet.PushAuthServlet;
 import org.wso2.carbon.identity.local.auth.push.servlet.PushStatusServlet;
 import org.wso2.carbon.identity.notification.push.device.handler.DeviceHandlerService;
 
 import javax.servlet.Servlet;
+import javax.servlet.ServletException;
 
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_AUTHENTICATE_SERVLET_URL;
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_STATUS_SERVLET_URL;
@@ -46,11 +66,13 @@ public class PushServletServiceComponent {
             httpService.registerServlet(PUSH_AUTHENTICATE_SERVLET_URL, pushAuthenticateServlet, null, null);
             httpService.registerServlet(PUSH_STATUS_SERVLET_URL, pushStatusServlet, null, null);
             if (log.isDebugEnabled()) {
-                log.debug("Push servlet service component activated."
-                        + "\n Authentication endpoint    : " + PUSH_AUTHENTICATE_SERVLET_URL
-                        + "\n Check status endpoint      : " + PUSH_STATUS_SERVLET_URL);
+                log.debug(String.format("Push servlet service component activated."
+                                + "%n Authentication endpoint    : %s"
+                                + "%n Check status endpoint      : %s",
+                        PUSH_AUTHENTICATE_SERVLET_URL, PUSH_STATUS_SERVLET_URL));
+
             }
-        } catch (Exception e) {
+        } catch (ServletException | NamespaceException e) {
             String errMsg = "Error when registering Push endpoint services via the HttpService.";
             log.error(errMsg, e);
             throw new RuntimeException(errMsg, e);

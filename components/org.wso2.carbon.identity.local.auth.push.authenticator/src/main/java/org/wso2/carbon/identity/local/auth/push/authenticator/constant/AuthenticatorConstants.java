@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.authenticator.constant;
 
 /**
@@ -5,16 +23,10 @@ package org.wso2.carbon.identity.local.auth.push.authenticator.constant;
  */
 public class AuthenticatorConstants {
 
-    private AuthenticatorConstants() {
-
-    }
-
     public static final String PUSH_AUTHENTICATOR_NAME = "push-notification-authenticator";
     public static final String PUSH_AUTHENTICATOR_FRIENDLY_NAME = "Push Notification";
     public static final String PUSH_AUTHENTICATOR_I18_KEY = "authenticator.push.notification";
-
     public static final String PUSH_AUTHENTICATOR_ERROR_PREFIX = "PNA";
-
     public static final String USERNAME = "username";
     public static final String PASSWORD = "password";
     public static final String AUTHENTICATORS = "authenticators=";
@@ -22,7 +34,6 @@ public class AuthenticatorConstants {
     public static final String LOCAL_AUTHENTICATOR = "LOCAL";
     public static final String IS_LOGIN_ATTEMPT_BY_INVALID_USER = "isLoginAttemptByInvalidUser";
     public static final String INVALID_USERNAME = "invalidUsername";
-
     public static final String PUSH_ID = "pushId";
     public static final String PUSH_AUTH_ID = "pushAuthId";
     public static final String DEVICE_TOKEN = "deviceToken";
@@ -32,26 +43,18 @@ public class AuthenticatorConstants {
     public static final String IP_ADDRESS = "ipAddress";
     public static final String REQUEST_DEVICE_OS = "deviceOS";
     public static final String REQUEST_DEVICE_BROWSER = "browser";
-
     public static final String PUSH_AUH_USER_CONSENT = "pushAuthUserConsent";
-
     public static final String AUTHENTICATOR_MESSAGE = "authenticatorMessage";
     public static final String PUSH_NOTIFICATION_SENT = "PushNotificationSent";
-
     public static final String PUSH_NOTIFICATION_EVENT_NAME = "TRIGGER_PUSH_NOTIFICATION";
-
     public static final String PUSH_NOTIFICATION_CHANNEL = "PUSH_NOTIFICATION";
-
     public static final String USER_AGENT = "user-agent";
-
-    public static final String IS_DEVICE_REGISTRATION_CONSENT_GIVEN = "isDeviceRegistrationConsentGiven";
-
+    public static final String IS_DEVICE_REGISTRATION_ENGAGED = "isDeviceRegistrationEngaged";
     // Endpoint URLs.
     public static final String PUSH_AUTH_WAIT_PAGE = "authenticationendpoint/pushAuth.jsp";
     public static final String PUSH_DEVICE_REGISTRATION_PAGE = "authenticationendpoint/pushEnroll.jsp";
     public static final String PUSH_DEVICE_ENROLL_CONSENT_PAGE = "authenticationendpoint/pushDeviceEnrollConsent.jsp";
     public static final String ERROR_PAGE = "authenticationendpoint/pushAuthError.jsp";
-
     // Query params.
     public static final String AUTHENTICATORS_QUERY_PARAM = "&authenticators=";
     public static final String RETRY_QUERY_PARAMS = "&authFailure=true&authFailureMsg=authentication.fail.message";
@@ -80,26 +83,19 @@ public class AuthenticatorConstants {
     public static final String NUMBER_CHALLENGE_PARAM = "&numberChallenge=";
     public static final String ENROLL_DATA_PARAM = "&pushEnrollData=";
     public static final String TENANT_DOMAIN_PARAM = "&tenantDomain=";
-
     public static final String NOTIFICATION_RESEND_ATTEMPTS = "notificationResendAttempts";
     public static final int DEFAULT_NOTIFICATION_RESEND_ATTEMPTS = 5;
-
     public static final String SCENARIO = "scenario";
     public static final String NOTIFICATION_SCENARIO = "NOTIFICATION_SCENARIO";
-
     // JWT token claim values.
     public static final String TOKEN_AUTH_STATUS = "response";
     public static final String TOKEN_AUTH_CHALLENGE = "challenge";
     public static final String TOKEN_NUMBER_CHALLENGE = "numberChallenge";
-
     public static final String AUTH_REQUEST_STATUS_APPROVED = "APPROVED";
     public static final String AUTH_REQUEST_STATUS_DENIED = "DENIED";
-
     public static final String PUSH_AUTH_CONTEXT_CACHE = "PushAuthContextCache";
-
     public static final String PUSH_AUTH_FAILED_ATTEMPTS_CLAIM =
             "http://wso2.org/claims/identity/failedPushAuthAttempts";
-
     // Auth error messages to be sent in the url in failure scenarios.
     public static final String PUSH_AUTH_FAIL_INTERNAL_ERROR = "Push Authentication Failed due to internal error";
     public static final String PUSH_AUTH_FAIL_USER_DENIED = "User denied the push authentication request";
@@ -107,6 +103,10 @@ public class AuthenticatorConstants {
             "the push authentication request";
     public static final String PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED = "Token response validation failed for " +
             "the push authentication request";
+
+    private AuthenticatorConstants() {
+
+    }
 
     /**
      * Authentication flow scenarios associated with the authenticator.
@@ -125,23 +125,14 @@ public class AuthenticatorConstants {
         private final String value;
 
         ScenarioTypes(String value) {
+
             this.value = value;
         }
 
         public String getValue() {
+
             return value;
         }
-    }
-
-    /**
-     * Enum for connector configurations.
-     */
-    public static class ConnectorConfig {
-
-        public static final String ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT = "PUSH.EnableProgressiveEnrollment";
-        public static final String ENABLE_PUSH_NUMBER_CHALLENGE = "PUSH.EnableNumberChallenge";
-        public static final String ENABLE_RESEND_NOTIFICATION_TIME = "PUSH.ResendNotificationTime";
-        public static final String RESEND_NOTIFICATION_MAX_ATTEMPTS = "PUSH.ResendNotificationMaxAttempts";
     }
 
     /**
@@ -155,10 +146,12 @@ public class AuthenticatorConstants {
         private final String value;
 
         NotificationScenarioTypes(String value) {
+
             this.value = value;
         }
 
         public String getValue() {
+
             return value;
         }
     }
@@ -210,9 +203,9 @@ public class AuthenticatorConstants {
                 "token received from device ID: %s"),
         ERROR_CODE_CLAIMSET_NOT_FOUND_IN_RESPONSE_TOKEN("65023", "Claim set not found in response " +
                 "token received from device ID: %s"),
-        ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED("65024", "Puss auth challenge validation " +
+        ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED("65024", "Push auth challenge validation " +
                 "failed for response token received from device ID: %s"),
-        ERROR_CODE_PUSH_NUMBER_CHALLENGE_VALIDATION_FAILED("65025", "Puss auth number challenge " +
+        ERROR_CODE_PUSH_NUMBER_CHALLENGE_VALIDATION_FAILED("65025", "Push auth number challenge " +
                 "validation failed for response token received from device ID: %s"),
         ERROR_CODE_ERROR_GETTING_AUTH_STATUS_FROM_TOKEN("65026", "Error occurred while getting " +
                 "the authentication status from the token received from device ID: %s"),
@@ -228,7 +221,10 @@ public class AuthenticatorConstants {
         ERROR_CODE_PUSH_AUTH_USER_DENIED("65032", "User denied the push authentication request for " +
                 "username: %s"),
         ERROR_CODE_AUTHENTICATION_CONTEXT_NOT_FOUND("65033", "Authentication context not found."),
-        ERROR_CODE_ERROR_BUILDING_STATUS_URL("65034", "Error occurred while building status check URL."),;
+        ERROR_CODE_ERROR_BUILDING_STATUS_URL("65034", "Error occurred while building status check URL."),
+        ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA("65035", "Error occurred while getting the registration " +
+                "data for user: %s"),
+        ;
 
         private final String code;
         private final String message;
@@ -254,6 +250,17 @@ public class AuthenticatorConstants {
 
             return code + " - " + message;
         }
+    }
+
+    /**
+     * Enum for connector configurations.
+     */
+    public static class ConnectorConfig {
+
+        public static final String ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT = "PUSH.EnableProgressiveEnrollment";
+        public static final String ENABLE_PUSH_NUMBER_CHALLENGE = "PUSH.EnableNumberChallenge";
+        public static final String ENABLE_RESEND_NOTIFICATION_TIME = "PUSH.ResendNotificationTime";
+        public static final String RESEND_NOTIFICATION_MAX_ATTEMPTS = "PUSH.ResendNotificationMaxAttempts";
     }
 
 }

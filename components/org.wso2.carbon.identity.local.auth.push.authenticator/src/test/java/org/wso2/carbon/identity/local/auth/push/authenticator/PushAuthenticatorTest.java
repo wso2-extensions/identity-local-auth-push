@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.authenticator;
 
 import org.mockito.InjectMocks;
@@ -21,7 +39,7 @@ import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
-import org.wso2.carbon.identity.local.auth.push.authenticator.exception.PushAuthenticatorServerException;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.authenticator.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils;
@@ -52,7 +70,6 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
-import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.RESEND_NOTIFICATION_MAX_ATTEMPTS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_FRIENDLY_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_I18_KEY;
@@ -67,6 +84,9 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USER_AGENT;
 
+/**
+ * Test class for PushAuthenticator.
+ */
 public class PushAuthenticatorTest {
 
     @Mock
@@ -194,18 +214,6 @@ public class PushAuthenticatorTest {
     }
 
     @Test
-    public void testGetMaximumResendAttempts() throws PushAuthenticatorServerException, AuthenticationFailedException {
-
-        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
-            mockedUtils.when(
-                    () -> AuthenticatorUtils.getPushAuthenticatorConfig(
-                            RESEND_NOTIFICATION_MAX_ATTEMPTS, "carbon.super"))
-                    .thenReturn("3");
-            assertEquals(3, pushAuthenticator.getMaximumResendAttempts("carbon.super"));
-        }
-    }
-
-    @Test
     public void testGetAuthInitiationData() throws AuthenticationFailedException, URLBuilderException {
 
         ExternalIdPConfig externalIdPConfig = mock(ExternalIdPConfig.class);
@@ -307,28 +315,6 @@ public class PushAuthenticatorTest {
                     "username=testUser&pushEnrollData=&enrollData=sampleData";
             assertEquals(queryParamsBuilder.toString(), expectedQueryString);
         }
-    }
-
-    @Test
-    public void testBuildQueryParamsForIDFUserDeviceEnrolConsentPage() {
-
-            AuthenticatedUser authenticatedUser = new AuthenticatedUser();
-            authenticatedUser.setUserName("testUser");
-            try (
-                    MockedStatic<FrameworkUtils> mockedFrameworkUtils = mockStatic(FrameworkUtils.class);
-                    MockedStatic<AuthenticatorUtils> mockedAuthenticatorUtils = mockStatic(AuthenticatorUtils.class)
-                    ) {
-                mockedFrameworkUtils.when(() -> FrameworkUtils.getQueryStringWithFrameworkContextId(
-                                context.getQueryParams(), context.getCallerSessionKey(),
-                                context.getContextIdentifier())).thenReturn("sampleQueryString");
-                mockedAuthenticatorUtils.when(() -> AuthenticatorUtils.getMultiOptionURIQueryString(httpServletRequest))
-                        .thenReturn("");
-                StringBuilder queryParamsBuilder = pushAuthenticator.buildQueryParamsForIDFUserDeviceEnrolConsentPage(
-                        authenticatedUser, httpServletRequest, context);
-                String expectedQueryString
-                        = "sampleQueryString&authenticators=push-notification-authenticator&username=testUser";
-                assertEquals(queryParamsBuilder.toString(), expectedQueryString);
-            }
     }
 
     @Test

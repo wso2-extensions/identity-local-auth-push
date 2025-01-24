@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.authenticator;
 
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -34,8 +52,9 @@ import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.handler.event.account.lock.exception.AccountLockServiceException;
 import org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
+import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManagerImpl;
 import org.wso2.carbon.identity.local.auth.push.authenticator.exception.PushAuthenticatorServerException;
-import org.wso2.carbon.identity.local.auth.push.authenticator.impl.PushAuthContextManagerImpl;
 import org.wso2.carbon.identity.local.auth.push.authenticator.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils;
@@ -106,6 +125,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_AUTH_STATUS_FROM_TOKEN;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_DEVICE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_DEVICE_PUBLIC_KEY;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_ID;
@@ -132,7 +152,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IDF_HANDLER_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.INVALID_USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IP_ADDRESS;
-import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_DEVICE_REGISTRATION_CONSENT_GIVEN;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_DEVICE_REGISTRATION_ENGAGED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_LOGIN_ATTEMPT_BY_INVALID_USER;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.LOCAL_AUTHENTICATOR;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.NOTIFICATION_PROVIDER;
@@ -221,7 +241,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 initiateAuthenticationRequest(request, response, context);
                 return AuthenticatorFlowStatus.INCOMPLETE;
             case INIT_PUSH_ENROLL:
-                context.setProperty(IS_DEVICE_REGISTRATION_CONSENT_GIVEN, true);
+                context.setProperty(IS_DEVICE_REGISTRATION_ENGAGED, true);
                 return AuthenticatorFlowStatus.FAIL_COMPLETED;
             case CANCEL_PUSH_ENROLL:
                 return AuthenticatorFlowStatus.FAIL_COMPLETED;
@@ -235,15 +255,14 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
     protected void initiateAuthenticationRequest(HttpServletRequest request, HttpServletResponse response,
                                                  AuthenticationContext context) throws AuthenticationFailedException {
 
-        // Fetch the authenticated user from the context.
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         String tenantDomain = context.getTenantDomain();
 
         if (authenticatedUserFromContext == null) {
 
             /*
-             * If an authenticatedUser is not found in the context, and the user is not redirected from the Identifier,
-             * redirect the user to the Identifier First page.
+             * If an authenticatedUser is not found in the context, and the user is not redirected from the
+             * Identifier First handler, redirect the user to the Identifier First page.
              */
             if (!isUserRedirectedFromIDF(request)) {
                 redirectUserToIDF(request, response, context);
@@ -371,18 +390,18 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
                 if (isUserRedirectedFromIDF(request)) {
 
-                    if (context.getProperty(IS_DEVICE_REGISTRATION_CONSENT_GIVEN) != null && Boolean.TRUE.equals(
-                            context.getProperty(IS_DEVICE_REGISTRATION_CONSENT_GIVEN))) {
-                        context.removeProperty(IS_DEVICE_REGISTRATION_CONSENT_GIVEN);
+                    if (context.getProperty(IS_DEVICE_REGISTRATION_ENGAGED) != null && Boolean.TRUE.equals(
+                            context.getProperty(IS_DEVICE_REGISTRATION_ENGAGED))) {
+                        context.removeProperty(IS_DEVICE_REGISTRATION_ENGAGED);
                     } else {
                         // If there is no device registered for the user, and the user is redirected from the Identifier
                         // then, get consent from the user to register a device.
-                        handleIDFUserDeviceEnrolConsentScenario(
+                        handleIDFUserDeviceEnrolEngageScenario(
                                 authenticatedUserFromContext, response, request, context);
                         if (!StringUtils.isEmpty(request.getParameter(USERNAME))) {
                             persistUsername(context, request.getParameter(USERNAME));
                         }
-                        context.setProperty(IS_DEVICE_REGISTRATION_CONSENT_GIVEN, true);
+                        context.setProperty(IS_DEVICE_REGISTRATION_ENGAGED, true);
                         return;
                     }
                 }
@@ -396,7 +415,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     return;
 
                 } catch (PushDeviceHandlerException e) {
-                    throw new RuntimeException(e);
+                    String error = String.format(
+                            ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA.getMessage(),
+                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()));
+                    throw new AuthenticationFailedException(ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA.getCode(),
+                            error, e);
                 }
             }
 
@@ -819,7 +842,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @return The maximum number of resend attempts.
      * @throws AuthenticationFailedException If an error occurs when retrieving config.
      */
-    protected int getMaximumResendAttempts(String tenantDomain) throws AuthenticationFailedException {
+    private int getMaximumResendAttempts(String tenantDomain) throws AuthenticationFailedException {
 
         try {
             return Integer.parseInt(AuthenticatorUtils.getPushAuthenticatorConfig(
@@ -845,7 +868,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             if (stepConfig.isSubjectAttributeStep() && user != null) {
                 if (StringUtils.isBlank(user.toFullQualifiedUsername())) {
                     LOG.debug("Username can not be empty.");
-                    throw handleAuthErrorScenario(ERROR_CODE_EMPTY_USERNAME);
+                    throw handleAuthErrorScenario(ERROR_CODE_NO_USER_FOUND);
                 }
                 return user;
             }
@@ -884,7 +907,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @param context  The authentication context.
      * @throws AuthenticationFailedException If an error occurred while setting redirect url.
      */
-    // @SuppressFBWarnings("UNVALIDATED_REDIRECT")
     private void redirectUserToIDF(HttpServletRequest request, HttpServletResponse response,
                                    AuthenticationContext context) throws AuthenticationFailedException {
 
@@ -1081,7 +1103,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             String url = FrameworkUtils.appendQueryParamsStringToUrl(pushDeviceRegistrationPageUrl,
                     queryParamsBuilder.toString());
             response.sendRedirect(url);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, (Object) null);
         }
     }
@@ -1119,9 +1141,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @param response HttpServletResponse.
      * @param context  AuthenticationContext.
      */
-    private void handleIDFUserDeviceEnrolConsentScenario(AuthenticatedUser authenticatedUser,
-                                                           HttpServletResponse response, HttpServletRequest request,
-                                                           AuthenticationContext context)
+    private void handleIDFUserDeviceEnrolEngageScenario(AuthenticatedUser authenticatedUser,
+                                                        HttpServletResponse response, HttpServletRequest request,
+                                                        AuthenticationContext context)
             throws AuthenticationFailedException {
 
         try {
@@ -1131,7 +1153,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             String url = FrameworkUtils.appendQueryParamsStringToUrl(pushDeviceRegistrationPageUrl,
                     queryParamsBuilder.toString());
             response.sendRedirect(url);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, (Object) null);
         }
     }
@@ -1144,7 +1166,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @param context           AuthenticationContext.
      * @return Query params for the IDF user device enrollment consent page.
      */
-    protected StringBuilder buildQueryParamsForIDFUserDeviceEnrolConsentPage(AuthenticatedUser authenticatedUser,
+    private StringBuilder buildQueryParamsForIDFUserDeviceEnrolConsentPage(AuthenticatedUser authenticatedUser,
                                                                             HttpServletRequest request,
                                                                             AuthenticationContext context) {
 
@@ -1285,7 +1307,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @return User claim value.
      * @throws AuthenticationFailedException If an error occurred while getting the claim value.
      */
-    protected String getUserClaimValueFromUserStore(String claimUri, AuthenticatedUser authenticatedUser,
+    private String getUserClaimValueFromUserStore(String claimUri, AuthenticatedUser authenticatedUser,
                                                     AuthenticatorConstants.ErrorMessages error)
             throws AuthenticationFailedException {
 
@@ -1542,8 +1564,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         setAuthenticatorMessage(context);
 
         /* SaaS apps are created at the super tenant level and they can be accessed by users of other organizations.
-        If users of other organizations try to login to a saas app, the sms notification should be triggered from the
-        sms provider configured for that organization. Hence, we need to start a new tenanted flow here. */
+        If users of other organizations try to login to a saas app, the push notification should be triggered from the
+        push provider configured for that organization. Hence, we need to start a new tenanted flow here. */
         if (context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
             try {
                 FrameworkUtils.startTenantFlow(authenticatedUser.getTenantDomain());
@@ -1597,6 +1619,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             return uaParser.parse(userAgentString);
         } catch (IOException e) {
             // If exception occurs, log and continue the flow without throwing the exception.
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Error occurred while parsing the user agent string.", e);
+            }
             return null;
         }
     }

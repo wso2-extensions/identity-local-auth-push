@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.wso2.carbon.identity.local.auth.push.servlet.constant;
 
 /**
@@ -17,9 +35,10 @@ public class PushServletConstants {
     public static final String TOKEN_TENANT_DOMAIN = "tenantDomain";
 
     /**
-     * Object holding authentication mobile response status.
+     * Object holding authentication device response status.
      */
     public enum Status {
+
         COMPLETED, PENDING
     }
 
@@ -60,7 +79,12 @@ public class PushServletConstants {
         ERROR_CODE_TENANT_ID_NOT_FOUND(
                 "PBA-15008",
                 "Authentication response token received from device: %s does not contain a tenantDomain."
-        ),;
+        ),
+        ERROR_CODE_REQUEST_CONTENT_READ_FAILED(
+                "PBA-15009",
+                "Error occurred when reading the request content."
+        ),
+        ;
 
         private final String code;
         private final String message;
