@@ -87,7 +87,7 @@
                             org.wso2.carbon.identity.application.authentication.framework; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.application.authentication.framework.store; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.local.auth.push.authenticator; version="${project.version}",
-                            org.wso2.carbon.identity.local.auth.push.authenticator.impl; version="${project.version}",
+                            org.wso2.carbon.identity.local.auth.push.authenticator.context; version="${project.version}",
                             org.wso2.carbon.identity.local.auth.push.authenticator.model; version="${project.version}",
                             org.wso2.carbon.identity.local.auth.push.authenticator.constant; version="${project.version}",
                             org.wso2.carbon.identity.notification.push.common; version="${identity.notification.push.import.version.range}",
