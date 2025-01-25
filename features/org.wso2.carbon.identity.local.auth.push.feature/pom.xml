@@ -28,7 +28,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>org.wso2.carbon.identity.loca.auth.push.feature</artifactId>
+    <artifactId>org.wso2.carbon.identity.local.auth.push.feature</artifactId>
     <packaging>pom</packaging>
     <name>Push Authenticator - Feature</name>
 
