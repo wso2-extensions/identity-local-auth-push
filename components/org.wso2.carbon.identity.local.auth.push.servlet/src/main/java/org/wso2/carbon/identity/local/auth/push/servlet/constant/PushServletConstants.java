@@ -31,7 +31,7 @@ public class PushServletConstants {
     public static final String AUTH_RESPONSE = "authResponse";
 
     public static final String TOKEN_DEVICE_ID = "deviceId";
-    public static final String TOKEN_PUSH_AUTH_ID = "pushId";
+    public static final String TOKEN_PUSH_AUTH_ID = "pushAuthId";
     public static final String TOKEN_TENANT_DOMAIN = "tenantDomain";
 
     /**
