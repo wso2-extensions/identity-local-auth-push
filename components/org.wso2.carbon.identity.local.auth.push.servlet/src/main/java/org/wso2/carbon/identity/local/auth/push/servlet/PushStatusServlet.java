@@ -26,6 +26,7 @@ import org.wso2.carbon.identity.local.auth.push.servlet.cache.PushAuthStatusCach
 import org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants;
 import org.wso2.carbon.identity.local.auth.push.servlet.impl.PushAuthStatusCacheManagerImpl;
 import org.wso2.carbon.identity.local.auth.push.servlet.model.PushAuthStatus;
+import org.wso2.carbon.identity.local.auth.push.servlet.model.ServletApiError;
 
 import java.io.IOException;
 
@@ -47,17 +48,25 @@ public class PushStatusServlet extends HttpServlet {
     private static final PushAuthStatusCacheManager pushAuthStatusCacheManager = new PushAuthStatusCacheManagerImpl();
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) {
 
         if (!(request.getParameterMap().containsKey(AuthenticatorConstants.PUSH_AUTH_ID))) {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
 
             if (log.isDebugEnabled()) {
                 log.debug(PushServletConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND_IN_STATUS.toString());
             }
+            handleAPIErrorResponse(response,
+                    PushServletConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND_IN_STATUS,
+                    HttpServletResponse.SC_NOT_FOUND);
 
         } else {
-            handleWebResponse(request, response);
+            try {
+                handleWebResponse(request, response);
+            } catch (IOException e) {
+                log.error("Error occurred while handling the push auth status response..", e);
+                handleAPIErrorResponse(response, PushServletConstants.ErrorMessages.ERROR_CODE_INTERNAL_SERVER_ERROR,
+                        HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
         }
     }
 
@@ -93,5 +102,27 @@ public class PushStatusServlet extends HttpServlet {
 
         String jsonResponse = new Gson().toJson(pushAuthStatus);
         response.getWriter().write(jsonResponse);
+        response.getWriter().flush();
+    }
+
+    /**
+     * Handle the API error response.
+     *
+     * @param response HTTP response
+     * @param error    Error message
+     * @param statusCode HTTP status code
+     */
+    private void handleAPIErrorResponse(HttpServletResponse response, PushServletConstants.ErrorMessages error,
+                                        int statusCode) {
+
+        try {
+            response.setStatus(statusCode);
+            ServletApiError servletApiError = new ServletApiError(error.getCode(), error.getMessage());
+            String jsonResponse = new Gson().toJson(servletApiError);
+            response.getWriter().write(jsonResponse);
+            response.getWriter().flush();
+        } catch (IOException e) {
+            log.error("Error occurred while sending the error response.", e);
+        }
     }
 }
