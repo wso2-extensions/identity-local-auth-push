@@ -49,49 +49,65 @@ public class PushServletConstants {
 
         ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND_IN_STATUS(
                 "PBA-15001",
+                "pushAuthId not found in the status request.",
                 "Error occurred when checking authentication status. The pushAuthId was null or "
                         + "the HTTP request was not supported."
         ),
         ERROR_CODE_GET_DEVICE_ID_FAILED(
                 "PBA-15002",
-                "Error occurred when extracting custom claim value of %s from auth response token."
+                "deviceId not found in the auth response token.",
+                "Error occurred when extracting custom claim value of deviceId from auth response token."
         ),
         ERROR_CODE_GET_PUBLIC_KEY_FAILED(
                 "PBA-15003",
-                "Error occurred when trying to get the public key from device: %s."
+                "Failed to get the public key for the respective device.",
+                "Error occurred when trying to get the public key of device: %s."
         ),
         ERROR_CODE_TOKEN_VALIDATION_FAILED(
                 "PBA-15004",
+                "Push auth token validation failed.",
                 "Error occurred when validating auth response token from device: %s."
         ),
         ERROR_CODE_PARSE_JWT_FAILED(
                 "PBA-15005",
+                "Error while processing the auth response token.",
                 "Error occurred when parsing auth response token to JWT."
         ),
         ERROR_CODE_AUTH_RESPONSE_TOKEN_NOT_FOUND(
                 "PBA-15006",
+                "Authentication response token not found in the request.",
                 "The request did not contain an authentication response token"
         ),
         ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND(
                 "PBA-15007",
+                "PushAuthId not found in the push auth response token.",
                 "Authentication response token received from device: %s does not contain a pushAuthId."
         ),
-        ERROR_CODE_TENANT_ID_NOT_FOUND(
-                "PBA-15008",
-                "Authentication response token received from device: %s does not contain a tenantDomain."
-        ),
         ERROR_CODE_REQUEST_CONTENT_READ_FAILED(
-                "PBA-15009",
+                "PBA-15008",
+                "Failed to read the push auth request content.",
                 "Error occurred when reading the request content."
-        );
+        ),
+        ERROR_CODE_INTERNAL_SERVER_ERROR(
+                "PBA-15009",
+                "An internal error occurred while processing the request.",
+                "An error occurred while processing the request."
+        ),
+        ERROR_CODE_ERROR_AUTH_CONTEXT_NOT_FOUND(
+                "PBA-15010",
+                "Push Authentication context not found for the relevant pushAuthId.",
+                "Push Authentication context not found for the pushAuthId: %s."
+        ),;
 
         private final String code;
         private final String message;
+        private final String description;
 
-        ErrorMessages(String code, String message) {
+        ErrorMessages(String code, String message, String description) {
 
             this.code = code;
             this.message = message;
+            this.description = description;
         }
 
         public String getCode() {
@@ -102,6 +118,11 @@ public class PushServletConstants {
         public String getMessage() {
 
             return message;
+        }
+
+        public String getDescription() {
+
+            return description;
         }
 
         @Override
