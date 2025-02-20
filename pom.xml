@@ -30,14 +30,14 @@
     <artifactId>identity-local-auth-push</artifactId>
     <name>Push Auth - Parent Component</name>
     <packaging>pom</packaging>
-    <version>1.0.7-SNAPSHOT</version>
+    <version>1.0.7</version>
 
     <scm>
         <url>https://github.com/wso2-extensions/identity-local-auth-push.git</url>
         <developerConnection>scm:git:https://github.com/wso2-extensions/identity-local-auth-push.git
         </developerConnection>
         <connection>scm:git:https://github.com/wso2-extensions/identity-local-auth-push.git</connection>
-        <tag>HEAD</tag>
+        <tag>v1.0.7</tag>
     </scm>
 
     <modules>
