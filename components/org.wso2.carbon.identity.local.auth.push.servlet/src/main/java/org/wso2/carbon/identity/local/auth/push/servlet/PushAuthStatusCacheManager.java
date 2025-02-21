@@ -33,6 +33,15 @@ public interface PushAuthStatusCacheManager {
      */
     void storeStatusCache(String key, String status);
 
+
+    /**
+     * Store push authentication status to the database only and invalidate the cache.
+     *
+     * @param key           Unique key for identifying the push auth status for the session.
+     * @param status         Push auth status cache.
+     */
+    void storeStatusCacheToDbOnly(String key, String status);
+
     /**
      * Get stored authentication status.
      *

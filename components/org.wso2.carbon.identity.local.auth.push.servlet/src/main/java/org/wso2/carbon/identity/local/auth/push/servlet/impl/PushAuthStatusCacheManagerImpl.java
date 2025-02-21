@@ -43,6 +43,15 @@ public class PushAuthStatusCacheManagerImpl implements PushAuthStatusCacheManage
     }
 
     @Override
+    public void storeStatusCacheToDbOnly(String key, String status) {
+
+        PushAuthStatusCacheEntry pushAuthStatusCacheEntry = new PushAuthStatusCacheEntry(status);
+        storeToSessionStore(key, pushAuthStatusCacheEntry);
+        PushAuthStatusCache.getInstance().clearCacheEntry(
+                new PushAuthStatusCacheKey(key), getLoginTenantDomainFromContext());
+    }
+
+    @Override
     public PushAuthStatusCacheEntry getStatusCache(String key) {
 
         PushAuthStatusCacheEntry pushAuthStatusCacheEntry = PushAuthStatusCache.getInstance().getValueFromCache(

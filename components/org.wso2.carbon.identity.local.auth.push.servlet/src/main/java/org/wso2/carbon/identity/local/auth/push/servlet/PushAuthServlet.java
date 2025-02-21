@@ -140,8 +140,15 @@ public class PushAuthServlet extends HttpServlet {
                 if (!isSuccessful) {
                     return;
                 }
+
+                /*
+                 * We need to invalidate the existing cache across the cluster and store the new status. But if there
+                 * is a poll request in between, the cache will be created again with the old status. To avoid this,
+                 * we store the new status in the database only and invalidate the cache. So, the next poll request
+                 * will get the new status from the database.
+                 */
                 String status = PushServletConstants.Status.COMPLETED.name();
-                pushAuthStatusCacheManager.storeStatusCache(pushAuthId, status);
+                pushAuthStatusCacheManager.storeStatusCacheToDbOnly(pushAuthId, status);
 
                 response.setStatus(HttpServletResponse.SC_OK);
 
@@ -251,6 +258,11 @@ public class PushAuthServlet extends HttpServlet {
             handleAPIErrorResponse(response, error, HttpServletResponse.SC_BAD_REQUEST);
             return false;
         }
+
+        // Invalidating the existing cache across the cluster.
+        contextManager.clearContext(pushAuthId);
+
+        // Store the new context with the updated token.
         context.setToken(token);
         contextManager.storeContext(pushAuthId, context);
         return true;
