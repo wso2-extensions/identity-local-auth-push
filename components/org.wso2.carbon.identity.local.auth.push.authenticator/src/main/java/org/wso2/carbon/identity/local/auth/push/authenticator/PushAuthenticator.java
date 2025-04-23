@@ -424,7 +424,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
 
             // If the code reaches this point, the user has a device registered.
-            prepareAuthChallenges(pushAuthContext);
+            prepareAuthChallenges(pushAuthContext, tenantDomain);
             pushAuthContext.setDeviceId(device.getDeviceId());
             pushAuthContext.setScenario(PUSH_AUTHENTICATION.getValue());
             pushAuthContextManager.storeContext(pushAuthId, pushAuthContext);
@@ -1497,14 +1497,19 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * Prepare the challenges related to push authentication.
      *
      * @param pushAuthContext PushAuthContext.
+     * @param tenantDomain    Tenant domain.
+     * @throws AuthenticationFailedException If an error occurred while preparing the challenges.
      */
-    private void prepareAuthChallenges(PushAuthContext pushAuthContext) {
+    private void prepareAuthChallenges(PushAuthContext pushAuthContext, String tenantDomain)
+            throws AuthenticationFailedException {
 
         String challenge = UUID.randomUUID().toString();
         pushAuthContext.setChallenge(challenge);
-        Random random = new Random();
-        int numberChallenge = random.nextInt(100);
-        pushAuthContext.setNumberChallenge(Integer.toString(numberChallenge));
+        if (isNumberChallengeEnabled(tenantDomain)) {
+            Random random = new Random();
+            int numberChallenge = random.nextInt(100);
+            pushAuthContext.setNumberChallenge(Integer.toString(numberChallenge));
+        }
     }
 
     /**
