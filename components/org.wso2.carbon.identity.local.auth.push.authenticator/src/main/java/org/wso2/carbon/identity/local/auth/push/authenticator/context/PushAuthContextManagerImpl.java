@@ -47,7 +47,8 @@ public class PushAuthContextManagerImpl implements PushAuthContextManager {
         if (cacheEntry != null) {
             return cacheEntry.getPushAuthContext();
         } else {
-            return getFromSessionStore(key).getPushAuthContext();
+            PushAuthContextCacheEntry entry = getFromSessionStore(key);
+            return entry == null ? null : entry.getPushAuthContext();
         }
     }
 
