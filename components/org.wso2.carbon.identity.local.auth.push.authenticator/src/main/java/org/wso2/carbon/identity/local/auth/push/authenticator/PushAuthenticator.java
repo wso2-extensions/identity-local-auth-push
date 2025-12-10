@@ -647,9 +647,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             LOG.debug("Validating auth challenge from response token failed.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_AUTHENTICATION_FAILED);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Push authentication request for user: " +
-                        AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                        " failed due to challenge validation.");
+                LOG.debug(String.format("Push authentication request for user: %s failed due to challenge validation.",
+                        authenticatedUserFromContext.getUserName()));
             }
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED, deviceId);
@@ -677,22 +676,19 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         if (AUTH_REQUEST_STATUS_APPROVED.equals(authStatus)) {
 
-            LOG.debug("Auth status is APPROVED. Processing approval.");
             if (isNumberChallengeEnabled(tenantDomain)) {
                 LOG.debug("Number challenge is enabled. Validating number challenge.");
                 String numberChallengeFromContext = pushAuthContext.getNumberChallenge();
                 boolean isNumberChallengeSuccessful = PushChallengeValidator.validateChallenge(claimsSet,
                         TOKEN_NUMBER_CHALLENGE, numberChallengeFromContext, deviceId);
                 if (!isNumberChallengeSuccessful) {
-                    LOG.debug("Number challenge validation failed.");
                     // Initiate authentication failure handling.
                     handlePushAuthVerificationFail(authenticatingUser, isInitialFederationAttempt);
                     handlePushAuthFailedScenario(request, response, context,
                             ERROR_NUMBER_CHALLENGE_FAILED_QUERY_PARAMS);
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Push authentication request for user: " +
-                                AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                                " failed due to number challenge validation.");
+                        LOG.debug(String.format("Push authentication request for user: %s failed due to number " +
+                                "challenge validation.", authenticatedUserFromContext.getUserName()));
                     }
                     throw handleAuthErrorScenario(
                             PUSH_AUTH_FAIL_NUMBER_CHALLENGE_FAILED,
@@ -701,8 +697,10 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
 
             // It reached here means, the authentication is successful.
-            LOG.debug(String.format("User: %s authenticated successfully via push notification.",
-                    authenticatedUserFromContext.getUserName()));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(String.format("User: %s authenticated successfully via push notification.",
+                        authenticatedUserFromContext.getUserName()));
+            }
             resetAuthFailedAttempts(authenticatingUser, isInitialFederationAttempt);
             context.setSubject(authenticatedUserFromContext);
             pushAuthContextManager.clearContext(pushAuthId);
