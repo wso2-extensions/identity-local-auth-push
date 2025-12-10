@@ -343,7 +343,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
          * federated user.
          */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
-
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, tenantDomain, isInitialFederationAttempt);
 
@@ -544,7 +543,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
          * federated user.
          */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
-
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, tenantDomain, isInitialFederationAttempt);
         try {
@@ -703,10 +701,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
 
             // It reached here means, the authentication is successful.
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("User: " + AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                        " authenticated successfully via push notification.");
-            }
+            LOG.debug(String.format("User: %s authenticated successfully via push notification.",
+                    authenticatedUserFromContext.getUserName()));
             resetAuthFailedAttempts(authenticatingUser, isInitialFederationAttempt);
             context.setSubject(authenticatedUserFromContext);
             pushAuthContextManager.clearContext(pushAuthId);
@@ -717,8 +713,8 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
             handlePushAuthFailedScenario(request, response, context, ERROR_USER_DENIED_CONSENT_QUERY_PARAMS);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("User: " + AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                        " denied the push notification authentication of pushAuthId: " + pushAuthId);
+                LOG.debug(String.format("User: %s denied the push notification authentication of pushAuthId: %s.",
+                        authenticatedUserFromContext.getUserName(), pushAuthId));
             }
             pushAuthContextManager.clearContext(pushAuthId);
             context.removeProperty(PUSH_AUTH_ID);
