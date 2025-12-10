@@ -224,6 +224,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         boolean canHandle = isScenarioAvailable || isUsernameAvailable;
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("PushAuthenticator canHandle check: isUsernameAvailable=%s, " +
+                            "isScenarioAvailable=%s, scenario=%s, canHandle=%s",
+                    isUsernameAvailable, isScenarioAvailable, request.getParameter(SCENARIO), canHandle));
+        }
+
         return canHandle;
     }
 
@@ -233,6 +239,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             throws AuthenticationFailedException, LogoutFailedException {
 
         AuthenticatorConstants.ScenarioTypes scenario = resolveScenario(request, context);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Processing PushAuthenticator with scenario: %s", scenario));
+        }
+
         switch (scenario) {
             case LOGOUT:
                 return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
@@ -258,6 +269,13 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         String tenantDomain = context.getTenantDomain();
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Initiating authentication request for tenantDomain: %s, " +
+                            "authenticatedUserFromContext: %s", tenantDomain,
+                    authenticatedUserFromContext != null ? AuthenticatorUtils.maskIfRequired(
+                            authenticatedUserFromContext.getUserName()) : "null"));
+        }
+
         if (authenticatedUserFromContext == null) {
 
             /*
@@ -265,12 +283,15 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
              * Identifier First handler, redirect the user to the Identifier First page.
              */
             if (!isUserRedirectedFromIDF(request)) {
+                LOG.debug("No authenticated user found in context and not redirected from IDF. " +
+                        "Redirecting to IDF page.");
                 redirectUserToIDF(request, response, context);
                 context.setProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR, true);
                 return;
             }
 
             // If the request is returned from the Identifier First page, resolve the user and set them in context.
+            LOG.debug("Request returned from IDF page. Resolving user from request.");
             context.removeProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR);
             AuthenticatedUser authenticatedUser = resolveUserFromRequest(request, context);
             authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUser, context);
@@ -282,12 +303,17 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
              * If the previous authentication has only been done by AuthenticationFlowHandlers, need to check if the
              * user exists in the database.
              */
+            LOG.debug("Previous authentication done by AuthenticationFlowHandler. Resolving user from user store.");
             authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext, context);
             setResolvedUserInContext(context, authenticatedUserFromContext);
         }
 
         // If the authenticated user is still null at this point, then an invalid user is trying to log in.
         if (authenticatedUserFromContext == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(String.format("Invalid user attempting to login: %s",
+                        AuthenticatorUtils.maskIfRequired(request.getParameter(USERNAME))));
+            }
             AuthenticatedUser invalidUser = new AuthenticatedUser();
             invalidUser.setUserName(request.getParameter(USERNAME));
             context.setProperty(IS_LOGIN_ATTEMPT_BY_INVALID_USER, true);
@@ -316,6 +342,13 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
          * federated user.
          */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("User resolution - mappedLocalUsername: %s, isInitialFederationAttempt: %s, " +
+                            "isFederatedUser: %s", AuthenticatorUtils.maskIfRequired(mappedLocalUsername),
+                    isInitialFederationAttempt, authenticatedUserFromContext.isFederatedUser()));
+        }
+
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, tenantDomain, isInitialFederationAttempt);
 
@@ -326,6 +359,10 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     authenticatingUser.getTenantDomain(),
                     authenticatingUser.getUserStoreDomain())
             ) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(String.format("User account is locked: %s",
+                            AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName())));
+                }
                 handleScenarioForLockedUser(authenticatingUser, request, response, context);
                 return;
             }
@@ -338,6 +375,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         String pushAuthId = UUID.randomUUID().toString();
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Generated pushAuthId: %s for user: %s", pushAuthId,
+                    AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName())));
+        }
+
         PushAuthContext pushAuthContext = new PushAuthContext();
 
         AuthenticatorConstants.ScenarioTypes scenario = resolveScenario(request, context);
@@ -349,6 +391,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 if (StringUtils.isNotBlank(context.getProperty(NOTIFICATION_RESEND_ATTEMPTS).toString())) {
                     int allowedResendAttemptsCount = getMaximumResendAttempts(tenantDomain);
                     if ((int) context.getProperty(NOTIFICATION_RESEND_ATTEMPTS) >= allowedResendAttemptsCount) {
+                        LOG.debug("User has exceeded maximum resend attempts. Failing authentication.");
                         handlePushAuthFailedScenario(request, response, context,
                                 ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS);
                         return;
@@ -358,6 +401,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
             Device device;
             try {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(String.format("Attempting to retrieve device for user: %s in tenantDomain: %s",
+                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()),
+                            tenantDomain));
+                }
                 device = AuthenticatorDataHolder.getInstance().getDeviceHandlerService()
                         .getDeviceByUserId(authenticatedUserFromContext.getUserId(), tenantDomain);
             } catch (UserIdNotFoundException e) {
@@ -369,6 +417,10 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             } catch (PushDeviceHandlerException e) {
                 if (ERROR_CODE_DEVICE_NOT_FOUND_FOR_USER_ID.getCode().equals(e.getErrorCode())) {
                     // The user does not have a device registered.
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(String.format("No device found for user: %s",
+                                AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName())));
+                    }
                     device = null;
                 } else {
                     String error = String.format(
@@ -384,6 +436,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
                 // Check if push device progressive enrollment is enabled.
                 if (!isProgressiveDeviceEnrollmentEnabled(tenantDomain)) {
+                    LOG.debug("Progressive device enrollment is not enabled. Failing authentication.");
                     handlePushAuthFailedScenario(request, response, context, ERROR_USER_REGISTERED_DEVICE_NOT_FOUND);
                     return;
                 }
@@ -392,10 +445,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
                     if (context.getProperty(IS_DEVICE_REGISTRATION_ENGAGED) != null && Boolean.TRUE.equals(
                             context.getProperty(IS_DEVICE_REGISTRATION_ENGAGED))) {
+                        LOG.debug("Device registration already engaged. Clearing registration flag.");
                         context.removeProperty(IS_DEVICE_REGISTRATION_ENGAGED);
                     } else {
                         // If there is no device registered for the user, and the user is redirected from the Identifier
                         // then, get consent from the user to register a device.
+                        LOG.debug("Redirecting user to device enrollment consent page.");
                         handleIDFUserDeviceEnrolEngageScenario(
                                 authenticatedUserFromContext, response, request, context);
                         if (!StringUtils.isEmpty(request.getParameter(USERNAME))) {
@@ -407,10 +462,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 }
 
                 try {
+                    LOG.debug("Retrieving registration discovery data for device enrollment.");
                     RegistrationDiscoveryData registrationData = AuthenticatorDataHolder.getInstance()
                             .getDeviceHandlerService().getRegistrationDiscoveryData(
                                     authenticatedUserFromContext.toFullQualifiedUsername(), tenantDomain);
                     String encodedData = Base64.getEncoder().encodeToString(registrationData.buildJSON().getBytes());
+                    LOG.debug("Redirecting user to device registration page.");
                     redirectToRegistrationPage(authenticatedUserFromContext, response, request, context, encodedData);
                     return;
 
@@ -424,6 +481,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
 
             // If the code reaches this point, the user has a device registered.
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(String.format("Device found for user: %s, deviceId: %s",
+                        AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()),
+                        device.getDeviceId()));
+            }
             prepareAuthChallenges(pushAuthContext, tenantDomain);
             pushAuthContext.setDeviceId(device.getDeviceId());
             pushAuthContext.setScenario(PUSH_AUTHENTICATION.getValue());
@@ -431,14 +493,26 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             context.setProperty(PUSH_AUTH_ID, pushAuthId);
 
             try {
+                LOG.debug("Triggering push notification event.");
                 triggerNotificationEvent(context, authenticatedUserFromContext, device, pushAuthContext, request);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(String.format("Push notification triggered successfully for user: %s, pushAuthId: %s",
+                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()),
+                            pushAuthId));
+                }
             } catch (IdentityEventException e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(String.format("Failed to trigger push notification event for user: %s",
+                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName())), e);
+                }
                 pushAuthContextManager.clearContext(PUSH_AUTH_ID);
                 context.removeProperty(PUSH_AUTH_ID);
                 handleNotificationEventFailureScenario(request, response, context);
+                return;
             }
 
             if (scenario == RESEND_PUSH_NOTIFICATION) {
+                LOG.debug("Resending push notification. Updating resend count.");
                 updateResendCount(context);
             }
         }
@@ -458,6 +532,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         }
         String tenantDomain = context.getTenantDomain();
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Processing authentication response for user: %s in tenantDomain: %s",
+                    AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()), tenantDomain));
+        }
+
         /*
          * We need to identify the username that the server is using to identify the user. This is needed to handle
          * federated scenarios, since for federated users, the username in the authentication context is not same as the
@@ -469,6 +548,13 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
          * federated user.
          */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Authentication response - mappedLocalUsername: %s, " +
+                            "isInitialFederationAttempt: %s", AuthenticatorUtils.maskIfRequired(mappedLocalUsername),
+                    isInitialFederationAttempt));
+        }
+
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, tenantDomain, isInitialFederationAttempt);
         try {
@@ -476,6 +562,10 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     && AuthenticatorDataHolder.getInstance().getAccountLockService().isAccountLocked(
                     authenticatingUser.getUserName(), authenticatingUser.getTenantDomain(),
                     authenticatingUser.getUserStoreDomain())) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(String.format("User account is locked during response processing: %s",
+                            AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName())));
+                }
                 throw handleAuthErrorScenario(ERROR_CODE_USER_ACCOUNT_LOCKED,
                         AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
             }
@@ -487,13 +577,19 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         String pushAuthId = context.getProperty(PUSH_AUTH_ID).toString();
         if (StringUtils.isBlank(pushAuthId)) {
+            LOG.debug("PushAuthId not found in context.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
                     context, ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND);
         }
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("Processing response for pushAuthId: %s", pushAuthId));
+        }
+
         PushAuthContext pushAuthContext = pushAuthContextManager.getContext(pushAuthId);
         if (pushAuthContext == null) {
+            LOG.debug("PushAuthContext not found in cache.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR,
                     context, ERROR_CODE_PUSH_AUTH_CONTEXT_NOT_FOUND,
@@ -512,6 +608,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         String authResponseToken = pushAuthContext.getToken();
         if (StringUtils.isBlank(authResponseToken)) {
+            LOG.debug("Authentication response token not found in push auth context.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR, context,
                     ERROR_CODE_PUSH_AUTH_RESPONSE_TOKEN_NOT_FOUND,
@@ -520,6 +617,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         String deviceId = pushAuthContext.getDeviceId();
         if (StringUtils.isBlank(deviceId)) {
+            LOG.debug("DeviceId not found in push auth context.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_DEVICE_ID_NOT_FOUND,
@@ -529,7 +627,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         String publicKey;
         try {
             publicKey = AuthenticatorDataHolder.getInstance().getDeviceHandlerService().getPublicKey(deviceId);
+            LOG.debug("Public key retrieved successfully for device.");
         } catch (PushDeviceHandlerException e) {
+            LOG.debug("Failed to retrieve public key for device.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_INTERNAL_ERROR, context,
                     ERROR_CODE_ERROR_GETTING_USER_DEVICE_PUBLIC_KEY,
@@ -538,13 +638,17 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         JWTClaimsSet claimsSet;
         try {
+            LOG.debug("Validating JWT claims from response token.");
             claimsSet = PushChallengeValidator.getValidatedClaimSet(authResponseToken, publicKey);
             if (claimsSet == null) {
+                LOG.debug("ClaimSet is null after validation.");
                 handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
                 throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                         ERROR_CODE_CLAIMSET_NOT_FOUND_IN_RESPONSE_TOKEN, deviceId);
             }
+            LOG.debug("JWT claims validated successfully.");
         } catch (PushTokenValidationException e) {
+            LOG.debug("Failed to validate response token", e);
             handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_RESPONSE_TOKEN_VALIDATION_FAILED, deviceId);
@@ -553,6 +657,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         String authChallengeFromContext = pushAuthContext.getChallenge();
         if (!PushChallengeValidator.validateChallenge(claimsSet, TOKEN_AUTH_CHALLENGE,
                 authChallengeFromContext, deviceId)) {
+            LOG.debug("Validating auth challenge from response token failed.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_AUTHENTICATION_FAILED);
             if (LOG.isDebugEnabled()) {
                 LOG.debug(String.format("Push authentication request for user: %s failed due to challenge validation.",
@@ -561,6 +666,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_PUSH_AUTH_CHALLENGE_VALIDATION_FAILED, deviceId);
         }
+        LOG.debug("Auth challenge validated successfully");
 
         String authStatus;
         try {
@@ -574,6 +680,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         if (!AUTH_REQUEST_STATUS_APPROVED.equalsIgnoreCase(authStatus)
                 && !AUTH_REQUEST_STATUS_DENIED.equalsIgnoreCase(authStatus)) {
 
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(String.format("Invalid auth status received: %s", authStatus));
+            }
             handlePushAuthFailedScenario(request, response, context, ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_ERROR_INVALID_AUTH_STATUS_FROM_TOKEN, deviceId);
@@ -581,11 +690,14 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         if (AUTH_REQUEST_STATUS_APPROVED.equals(authStatus)) {
 
+            LOG.debug("Auth status is APPROVED. Processing approval.");
             if (isNumberChallengeEnabled(tenantDomain)) {
+                LOG.debug("Number challenge is enabled. Validating number challenge.");
                 String numberChallengeFromContext = pushAuthContext.getNumberChallenge();
                 boolean isNumberChallengeSuccessful = PushChallengeValidator.validateChallenge(claimsSet,
                         TOKEN_NUMBER_CHALLENGE, numberChallengeFromContext, deviceId);
                 if (!isNumberChallengeSuccessful) {
+                    LOG.debug("Number challenge validation failed.");
                     // Initiate authentication failure handling.
                     handlePushAuthVerificationFail(authenticatingUser, isInitialFederationAttempt);
                     handlePushAuthFailedScenario(request, response, context,
@@ -598,6 +710,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                             PUSH_AUTH_FAIL_NUMBER_CHALLENGE_FAILED,
                             context, ERROR_CODE_PUSH_NUMBER_CHALLENGE_VALIDATION_FAILED, deviceId);
                 }
+                LOG.debug("Number challenge validated successfully.");
             }
 
             // It reached here means, the authentication is successful.
