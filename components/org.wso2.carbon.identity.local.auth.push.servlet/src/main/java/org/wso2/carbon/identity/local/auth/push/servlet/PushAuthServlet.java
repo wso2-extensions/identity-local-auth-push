@@ -25,6 +25,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.JSONObject;
+import org.osgi.service.component.annotations.Component;
 import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants;
@@ -39,15 +40,27 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.text.ParseException;
 
+import javax.servlet.Servlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.AUTH_RESPONSE;
+import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_AUTHENTICATE_SERVLET_URL;
 
 /**
  * Servlet for handling authentication requests sent from device.
  */
+//TODO Check if this servlet is working.
+@Component(
+        service = Servlet.class,
+        immediate = true,
+        property = {
+                "osgi.http.whiteboard.servlet.pattern=" + PUSH_AUTHENTICATE_SERVLET_URL,
+                "osgi.http.whiteboard.servlet.name=PushAuthServlet",
+                "osgi.http.whiteboard.servlet.asyncSupported=true"
+        }
+)
 public class PushAuthServlet extends HttpServlet {
 
     private static final long serialVersionUID = 3471640151205811758L;
