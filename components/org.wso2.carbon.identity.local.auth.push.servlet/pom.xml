@@ -77,7 +77,6 @@
                             org.wso2.carbon.identity.local.auth.push.servlet.*; version="${project.version}
                         </Export-Package>
                         <Import-Package>
-                            org.eclipse.equinox.http.helper,
                             javax.servlet.http; version="${imp.pkg.version.javax.servlet}",
                             org.apache.commons.logging; version="${org.apache.commons.logging.range}",
                             org.osgi.framework; version="${osgi.framework.imp.pkg.version.range}",

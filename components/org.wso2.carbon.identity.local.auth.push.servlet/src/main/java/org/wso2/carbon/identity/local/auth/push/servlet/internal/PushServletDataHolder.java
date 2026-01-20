@@ -72,13 +72,4 @@ public class PushServletDataHolder {
         PushServletDataHolder.pushAuthContextManager = pushAuthContextManager;
     }
 
-    public HttpService getHttpService() {
-
-        return httpService;
-    }
-
-    public void setHttpService(HttpService httpService) {
-
-        this.httpService = httpService;
-    }
 }

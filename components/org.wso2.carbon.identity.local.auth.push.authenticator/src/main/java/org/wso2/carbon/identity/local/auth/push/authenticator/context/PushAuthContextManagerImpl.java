@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.local.auth.push.authenticator.context;
 
+import org.osgi.annotation.bundle.Capability;
 import org.wso2.carbon.identity.application.authentication.framework.store.SessionDataStore;
 import org.wso2.carbon.identity.local.auth.push.authenticator.cache.PushAuthContextCache;
 import org.wso2.carbon.identity.local.auth.push.authenticator.cache.PushAuthContextCacheEntry;
@@ -29,6 +30,13 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 /**
  * This class implements the {@link PushAuthContextManager} interface.
  */
+@Capability(
+        namespace = "osgi.service",
+        attribute = {
+                "objectClass=org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager",
+                "service.scope=singleton"
+        }
+)
 public class PushAuthContextManagerImpl implements PushAuthContextManager {
 
     @Override

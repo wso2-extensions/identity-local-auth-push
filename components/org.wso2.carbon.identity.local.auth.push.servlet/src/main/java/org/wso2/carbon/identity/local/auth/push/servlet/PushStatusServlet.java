@@ -21,6 +21,7 @@ package org.wso2.carbon.identity.local.auth.push.servlet;
 import com.google.gson.Gson;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.osgi.service.component.annotations.Component;
 import org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.push.servlet.cache.PushAuthStatusCacheEntry;
 import org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants;
@@ -30,17 +31,29 @@ import org.wso2.carbon.identity.local.auth.push.servlet.model.ServletApiError;
 
 import java.io.IOException;
 
+import javax.servlet.Servlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.MEDIA_TYPE_JSON;
+import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.PUSH_STATUS_SERVLET_URL;
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.Status.COMPLETED;
 import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants.Status.PENDING;
 
 /**
  * Servlet for handling the status checks for authentication requests from the push authenticator wait page.
  */
+//TODO Check if this servlet is working.
+@Component(
+        service = Servlet.class,
+        immediate = true,
+        property = {
+                "osgi.http.whiteboard.servlet.pattern=" + PUSH_STATUS_SERVLET_URL,
+                "osgi.http.whiteboard.servlet.name=PushStatusServlet",
+                "osgi.http.whiteboard.servlet.asyncSupported=true"
+        }
+)
 public class PushStatusServlet extends HttpServlet {
 
     private static final long serialVersionUID = -8827871176057704783L;
