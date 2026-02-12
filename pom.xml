@@ -144,6 +144,11 @@
                 <version>${ua.parser.wso2.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.eclipse.platform</groupId>
+                <artifactId>org.eclipse.osgi.services</artifactId>
+                <version>${equinox.osgi.services.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.testng</groupId>
                 <artifactId>testng</artifactId>
                 <version>${testng.version}</version>
@@ -151,7 +156,7 @@
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
+                <artifactId>mockito-core</artifactId>
                 <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
@@ -183,26 +188,28 @@
 
         <commons.logging.version>1.2</commons.logging.version>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
-        <imp.pkg.version.javax.servlet>[2.6.0, 3.0.0)</imp.pkg.version.javax.servlet>
+        <imp.pkg.version.javax.servlet>[3.1.0, 4.0.0)</imp.pkg.version.javax.servlet>
         <encoder.wso2.version>1.2.0.wso2v1</encoder.wso2.version>
         <encoder.wso2.import.version.range>[1.2.0, 2.0.0)</encoder.wso2.import.version.range>
 
         <ua.parser.wso2.version>1.3.0.wso2v2</ua.parser.wso2.version>
         <ua.parser.version.range>[1.3,2)</ua.parser.version.range>
 
+        <equinox.osgi.services.version>3.12.0</equinox.osgi.services.version>
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
 
         <maven.checkstyleplugin.version>3.1.0</maven.checkstyleplugin.version>
         <findsecbugs-plugin.version>1.10.1</findsecbugs-plugin.version>
         <spotbugs-maven-plugin.version>4.7.2.1</spotbugs-maven-plugin.version>
-        <maven.bundle.plugin.version>3.2.0</maven.bundle.plugin.version>
+        <maven.bundle.plugin.version>5.1.9</maven.bundle.plugin.version>
 
-        <testng.version>6.9.10</testng.version>
-        <mockito.version>3.8.0</mockito.version>
+        <testng.version>7.10.1</testng.version>
+        <mockito.version>5.3.1</mockito.version>
         <jacoco.version>0.8.12</jacoco.version>
 
         <project.scm.id>my-scm-server</project.scm.id>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
     </properties>
 
     <build>
@@ -285,6 +292,15 @@
                             </configuration>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>21</source>
+                        <target>21</target>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
