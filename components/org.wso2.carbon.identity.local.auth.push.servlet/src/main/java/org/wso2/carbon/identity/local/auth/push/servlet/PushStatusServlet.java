@@ -44,7 +44,6 @@ import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServ
 /**
  * Servlet for handling the status checks for authentication requests from the push authenticator wait page.
  */
-//TODO Check if this servlet is working.
 @Component(
         service = Servlet.class,
         immediate = true,

@@ -51,7 +51,6 @@ import static org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServ
 /**
  * Servlet for handling authentication requests sent from device.
  */
-//TODO Check if this servlet is working.
 @Component(
         service = Servlet.class,
         immediate = true,
