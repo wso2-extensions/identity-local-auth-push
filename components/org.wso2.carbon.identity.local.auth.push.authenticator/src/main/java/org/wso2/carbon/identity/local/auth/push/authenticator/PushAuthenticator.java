@@ -106,6 +106,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.RESEND_NOTIFICATION_MAX_ATTEMPTS;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_HANDLE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_ID;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_TOKEN;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ENROLL_DATA_PARAM;
@@ -1648,6 +1649,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         metaProperties.put(DEVICE_TOKEN, device.getDeviceToken());
         metaProperties.put(NOTIFICATION_PROVIDER, device.getProvider());
         metaProperties.put(DEVICE_ID, device.getDeviceId());
+        metaProperties.put(DEVICE_HANDLE, device.getDeviceHandle());
 
         metaProperties.put(CHALLENGE, pushAuthContext.getChallenge());
         metaProperties.put(NUMBER_CHALLENGE, pushAuthContext.getNumberChallenge());
