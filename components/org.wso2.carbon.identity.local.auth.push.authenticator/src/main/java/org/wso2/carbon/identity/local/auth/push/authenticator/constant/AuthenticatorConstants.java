@@ -104,6 +104,7 @@ public class AuthenticatorConstants {
             "the push authentication request";
     public static final String PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED = "Token response validation failed for " +
             "the push authentication request";
+    public static final String IS_API_BASED_AND_NO_DEVICE_ENROLLED = "isApiBasedAndNoDeviceEnrolled";
 
     private AuthenticatorConstants() {
 

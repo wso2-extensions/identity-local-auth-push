@@ -152,6 +152,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IDF_HANDLER_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.INVALID_USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IP_ADDRESS;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_API_BASED_AND_NO_DEVICE_ENROLLED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_DEVICE_REGISTRATION_ENGAGED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_LOGIN_ATTEMPT_BY_INVALID_USER;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.LOCAL_AUTHENTICATOR;
@@ -427,6 +428,18 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
             // If device is null, that means the user does not have a device registered.
             if (device == null) {
+
+                // If API based authentication, return an error response.
+                if (isAPIBasedAuthRequest(request)) {
+                    // App native does not support progressive device enrollment.
+                    // TODO: We can remove this check once app native supports progressive device enrollment.
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("API based authentication request with no device registered. " +
+                                "Failing authentication.");
+                    }
+                    context.setProperty(IS_API_BASED_AND_NO_DEVICE_ENROLLED, true);
+                    handlePushAuthFailedScenario(request, response, context, ERROR_USER_REGISTERED_DEVICE_NOT_FOUND);
+                }
 
                 // Check if push device progressive enrollment is enabled.
                 if (!isProgressiveDeviceEnrollmentEnabled(tenantDomain)) {
@@ -782,6 +795,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
+
+        if (Boolean.TRUE.equals(context.getProperty(IS_API_BASED_AND_NO_DEVICE_ENROLLED))) {
+            /* No need to add required params and additional data as authentication will be failed with an error
+            message mentioning no device enrolled. */
+            return Optional.of(authenticatorData);
+        }
 
         // To show additional data, it requires at least one required param. So we have added scenario as required
         // param. To continue the push flow, the scenario should be PROCEED_PUSH_AUTHENTICATION.
@@ -1826,4 +1845,14 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         }
     }
 
+    /**
+     * Check whether the request is coming for an API based authentication flow.
+     *
+     * @param request HttpServletRequest.
+     * @return True if the request is coming for an API based authentication flow, false otherwise.
+     */
+    private boolean isAPIBasedAuthRequest(HttpServletRequest request) {
+
+        return Boolean.TRUE.equals(request.getAttribute(FrameworkConstants.IS_API_BASED_AUTH_FLOW));
+    }
 }
