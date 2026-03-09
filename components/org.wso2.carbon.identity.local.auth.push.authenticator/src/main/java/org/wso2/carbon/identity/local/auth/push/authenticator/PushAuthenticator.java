@@ -1695,6 +1695,16 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                                 Map<String, Object> eventProperties) throws IdentityEventException {
 
         HashMap<String, Object> properties = new HashMap<>();
+
+        String userId = null;
+        try {
+            userId = user.getUserId();
+        } catch (UserIdNotFoundException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
+        }
+        properties.put(IdentityEventConstants.EventProperty.USER_ID, userId);
         properties.put(IdentityEventConstants.EventProperty.USER_NAME, user.getUserName());
         properties.put(IdentityEventConstants.EventProperty.USER_STORE_DOMAIN, user.getUserStoreDomain());
         properties.put(TENANT_DOMAIN, user.getTenantDomain());
