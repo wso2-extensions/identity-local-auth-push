@@ -64,6 +64,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator.SKIP_RETRY_FROM_AUTHENTICATOR;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ERROR_MSG;
@@ -71,6 +72,7 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_API_BASED_AND_NO_DEVICE_ENROLLED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_FRIENDLY_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_I18_KEY;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTHENTICATOR_NAME;
@@ -376,4 +378,25 @@ public class PushAuthenticatorTest {
             assertTrue(result);
         }
     }
+
+    @Test
+    public void testGetAuthInitiationDataWhenApiBasedAndNoDeviceEnrolled() throws AuthenticationFailedException {
+
+        ExternalIdPConfig externalIdPConfig = mock(ExternalIdPConfig.class);
+        when(context.getExternalIdP()).thenReturn(externalIdPConfig);
+        when(externalIdPConfig.getIdPName()).thenReturn("externalIdP");
+        when(context.getProperty(IS_API_BASED_AND_NO_DEVICE_ENROLLED)).thenReturn(true);
+
+        Optional<AuthenticatorData> result = pushAuthenticator.getAuthInitiationData(context);
+
+        assertTrue(result.isPresent());
+        AuthenticatorData data = result.get();
+        assertEquals(PUSH_AUTHENTICATOR_NAME, data.getName());
+        assertEquals(PUSH_AUTHENTICATOR_FRIENDLY_NAME, data.getDisplayName());
+        assertEquals("externalIdP", data.getIdp());
+        assertEquals(PUSH_AUTHENTICATOR_I18_KEY, data.getI18nKey());
+        assertEquals(INTERNAL_PROMPT, data.getPromptType());
+        assertNull(data.getAdditionalData());
+    }
+
 }
