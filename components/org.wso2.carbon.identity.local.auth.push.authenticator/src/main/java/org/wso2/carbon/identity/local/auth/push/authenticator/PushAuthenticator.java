@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025-2026, WSO2 LLC. (http://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -106,6 +106,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.RESEND_NOTIFICATION_MAX_ATTEMPTS;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_HANDLE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_ID;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_TOKEN;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ENROLL_DATA_PARAM;
@@ -1667,6 +1668,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         metaProperties.put(DEVICE_TOKEN, device.getDeviceToken());
         metaProperties.put(NOTIFICATION_PROVIDER, device.getProvider());
         metaProperties.put(DEVICE_ID, device.getDeviceId());
+        metaProperties.put(DEVICE_HANDLE, device.getDeviceHandle());
 
         metaProperties.put(CHALLENGE, pushAuthContext.getChallenge());
         metaProperties.put(NUMBER_CHALLENGE, pushAuthContext.getNumberChallenge());
@@ -1712,6 +1714,16 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                                 Map<String, Object> eventProperties) throws IdentityEventException {
 
         HashMap<String, Object> properties = new HashMap<>();
+
+        String userId = null;
+        try {
+            userId = user.getUserId();
+        } catch (UserIdNotFoundException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
+        }
+        properties.put(IdentityEventConstants.EventProperty.USER_ID, userId);
         properties.put(IdentityEventConstants.EventProperty.USER_NAME, user.getUserName());
         properties.put(IdentityEventConstants.EventProperty.USER_STORE_DOMAIN, user.getUserStoreDomain());
         properties.put(TENANT_DOMAIN, user.getTenantDomain());

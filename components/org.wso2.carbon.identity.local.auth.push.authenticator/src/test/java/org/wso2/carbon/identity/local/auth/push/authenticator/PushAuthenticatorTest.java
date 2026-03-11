@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2025-2026, WSO2 LLC. (http://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -30,6 +30,7 @@ import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.ExternalIdPConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
@@ -317,9 +318,34 @@ public class PushAuthenticatorTest {
     public void testTriggerEvent() throws IdentityEventException {
 
         AuthenticatedUser user = new AuthenticatedUser();
+        user.setUserId("testUserId");
         user.setUserName("testUser");
         user.setUserStoreDomain("PRIMARY");
         user.setTenantDomain("carbon.super");
+
+        Map<String, Object> eventProperties = new HashMap<>();
+        eventProperties.put("key1", "value1");
+
+        try (MockedStatic<AuthenticatorDataHolder> mockedDataHolder = mockStatic(AuthenticatorDataHolder.class)) {
+            IdentityEventService identityEventService = mock(IdentityEventService.class);
+            AuthenticatorDataHolder dataHolder = mock(AuthenticatorDataHolder.class);
+            mockedDataHolder.when(AuthenticatorDataHolder::getInstance).thenReturn(dataHolder);
+            when(dataHolder.getIdentityEventService()).thenReturn(identityEventService);
+
+            pushAuthenticator.triggerEvent("TEST_EVENT", user, eventProperties);
+
+            verify(identityEventService, times(1)).handleEvent(any(Event.class));
+        }
+    }
+
+    @Test
+    public void testTriggerEventWithoutUserId() throws IdentityEventException, UserIdNotFoundException {
+
+        AuthenticatedUser user = mock(AuthenticatedUser.class);
+        when(user.getUserName()).thenReturn("testUser");
+        when(user.getUserStoreDomain()).thenReturn("PRIMARY");
+        when(user.getTenantDomain()).thenReturn("carbon.super");
+        when(user.getUserId()).thenThrow(new UserIdNotFoundException("User ID not found"));
 
         Map<String, Object> eventProperties = new HashMap<>();
         eventProperties.put("key1", "value1");
