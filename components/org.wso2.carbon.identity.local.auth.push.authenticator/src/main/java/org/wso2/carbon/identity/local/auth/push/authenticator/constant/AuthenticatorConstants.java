@@ -28,6 +28,8 @@ public class AuthenticatorConstants {
     public static final String PUSH_AUTHENTICATOR_I18_KEY = "authenticator.push.notification";
     public static final String PUSH_AUTHENTICATOR_ERROR_PREFIX = "PNA";
     public static final String USERNAME = "username";
+    public static final String DISPLAY_USERNAME = "Username";
+    public static final String USERNAME_PARAM_KEY = "username.param";
     public static final String PASSWORD = "password";
     public static final String AUTHENTICATORS = "authenticators=";
     public static final String IDF_HANDLER_NAME = "IdentifierExecutor";

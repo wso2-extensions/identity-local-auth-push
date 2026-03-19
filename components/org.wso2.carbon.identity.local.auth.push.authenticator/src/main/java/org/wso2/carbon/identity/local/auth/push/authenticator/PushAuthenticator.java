@@ -109,6 +109,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_HANDLE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_ID;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DEVICE_TOKEN;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.DISPLAY_USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ENROLL_DATA_PARAM;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_NUMBER_CHALLENGE_FAILED_QUERY_PARAMS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_PUSH_AUTHENTICATION_FAILED;
@@ -195,6 +196,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.UNLOCK_QUERY_PARAM;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME_PARAM;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME_PARAM_KEY;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USER_AGENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils.getPushAuthPErrorPageUrl;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils.getPushAuthWaitPageUrl;
@@ -792,10 +794,22 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         authenticatorData.setIdp(idpName);
         authenticatorData.setI18nKey(PUSH_AUTHENTICATOR_I18_KEY);
 
-        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT);
-
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        List<String> requiredParams = new ArrayList<>();
+        if (authenticatedUser == null) {
+            AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                    USERNAME, DISPLAY_USERNAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                    0, Boolean.FALSE, USERNAME_PARAM_KEY);
+            authenticatorParamMetadataList.add(usernameMetadata);
+            requiredParams.add(USERNAME);
+            authenticatorData.setRequiredParams(requiredParams);
+            authenticatorData.setAuthParams(authenticatorParamMetadataList);
+            authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
+            return Optional.of(authenticatorData);
+        }
+
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
+        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT);
 
         if (Boolean.TRUE.equals(context.getProperty(IS_API_BASED_AND_NO_DEVICE_ENROLLED))) {
             /* No need to add required params and additional data as authentication will be failed with an error
@@ -805,7 +819,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         // To show additional data, it requires at least one required param. So we have added scenario as required
         // param. To continue the push flow, the scenario should be PROCEED_PUSH_AUTHENTICATION.
-        List<String> requiredParams = new ArrayList<>();
         requiredParams.add(SCENARIO);
         authenticatorData.setRequiredParams(requiredParams);
 
