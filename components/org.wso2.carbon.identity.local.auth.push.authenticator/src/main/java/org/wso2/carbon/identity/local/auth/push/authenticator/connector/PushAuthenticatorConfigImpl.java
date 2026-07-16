@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_RESEND_NOTIFICATION_TIME;
@@ -78,6 +79,8 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         nameMapping.put(ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "Enable Progressive Enrollment");
         nameMapping.put(ENABLE_RESEND_NOTIFICATION_TIME, "Resend Notification Time");
         nameMapping.put(RESEND_NOTIFICATION_MAX_ATTEMPTS, "Resend Notification Max Attempts");
+        nameMapping.put(ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT,
+                "Enable Progressive Enrollment for Multiple Devices");
         return nameMapping;
     }
 
@@ -91,6 +94,8 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         descriptionMapping.put(ENABLE_RESEND_NOTIFICATION_TIME, "Number of seconds to enable resending the push " +
                 "notification.");
         descriptionMapping.put(RESEND_NOTIFICATION_MAX_ATTEMPTS, "Maximum number of attempts to resend notification.");
+        descriptionMapping.put(ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT,
+                "Enable enrolling multiple push notification devices for users progressively during authentication.");
         return descriptionMapping;
     }
 
@@ -102,6 +107,7 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         properties.add(ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT);
         properties.add(ENABLE_RESEND_NOTIFICATION_TIME);
         properties.add(RESEND_NOTIFICATION_MAX_ATTEMPTS);
+        properties.add(ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT);
         return properties.toArray(new String[0]);
     }
 
@@ -112,12 +118,15 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         String enablePushDeviceProgressiveEnrollment = "false";
         int enableResendNotificationInSeconds = 60;
         int resendNotificationMaxAttempts = 3;
+        String enableMultiplePushDeviceProgressiveEnrollment = "false";
 
         String enablePushNumberChallengeProperty = IdentityUtil.getProperty(ENABLE_PUSH_NUMBER_CHALLENGE);
         String enablePushDeviceProgressiveEnrollmentProperty =
                 IdentityUtil.getProperty(ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT);
         String enableResendNotificationInSecondsProperty = IdentityUtil.getProperty(ENABLE_RESEND_NOTIFICATION_TIME);
         String resendNotificationMaxAttemptsProperty = IdentityUtil.getProperty(RESEND_NOTIFICATION_MAX_ATTEMPTS);
+        String enableMultiplePushDeviceProgressiveEnrollmentProperty =
+                IdentityUtil.getProperty(ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT);
 
         if (enablePushNumberChallengeProperty != null) {
             enablePushNumberChallenge = enablePushNumberChallengeProperty;
@@ -131,12 +140,17 @@ public class PushAuthenticatorConfigImpl implements IdentityConnectorConfig {
         if (resendNotificationMaxAttemptsProperty != null) {
             resendNotificationMaxAttempts = Integer.parseInt(resendNotificationMaxAttemptsProperty);
         }
+        if (enableMultiplePushDeviceProgressiveEnrollmentProperty != null) {
+            enableMultiplePushDeviceProgressiveEnrollment = enableMultiplePushDeviceProgressiveEnrollmentProperty;
+        }
 
         Map<String, String> defaultProperties = new HashMap<>();
         defaultProperties.put(ENABLE_PUSH_NUMBER_CHALLENGE, enablePushNumberChallenge);
         defaultProperties.put(ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, enablePushDeviceProgressiveEnrollment);
         defaultProperties.put(ENABLE_RESEND_NOTIFICATION_TIME, String.valueOf(enableResendNotificationInSeconds));
         defaultProperties.put(RESEND_NOTIFICATION_MAX_ATTEMPTS, String.valueOf(resendNotificationMaxAttempts));
+        defaultProperties.put(ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT,
+                enableMultiplePushDeviceProgressiveEnrollment);
 
         Properties properties = new Properties();
         properties.putAll(defaultProperties);

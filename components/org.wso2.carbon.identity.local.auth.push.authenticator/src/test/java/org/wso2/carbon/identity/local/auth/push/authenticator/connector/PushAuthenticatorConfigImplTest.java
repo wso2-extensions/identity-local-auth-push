@@ -85,6 +85,8 @@ public class PushAuthenticatorConfigImplTest {
         assertEquals(nameMapping.get("PUSH.EnableProgressiveEnrollment"), "Enable Progressive Enrollment");
         assertEquals(nameMapping.get("PUSH.ResendNotificationTime"), "Resend Notification Time");
         assertEquals(nameMapping.get("PUSH.ResendNotificationMaxAttempts"), "Resend Notification Max Attempts");
+        assertEquals(nameMapping.get("PUSH.EnableMultipleDeviceProgressiveEnrollment"),
+                "Enable Progressive Enrollment for Multiple Devices");
     }
 
     @Test
@@ -100,6 +102,8 @@ public class PushAuthenticatorConfigImplTest {
                 "resending the push notification.");
         assertEquals(descriptionMapping.get("PUSH.ResendNotificationMaxAttempts"), "Maximum number of attempts to " +
                 "resend notification.");
+        assertEquals(descriptionMapping.get("PUSH.EnableMultipleDeviceProgressiveEnrollment"),
+                "Enable enrolling multiple push notification devices for users progressively during authentication.");
     }
 
     @Test
@@ -107,11 +111,12 @@ public class PushAuthenticatorConfigImplTest {
 
         String[] propertyNames = pushAuthenticatorConfig.getPropertyNames();
         assertNotNull(propertyNames);
-        assertEquals(propertyNames.length, 4);
+        assertEquals(propertyNames.length, 5);
         assertEquals(propertyNames[0], "PUSH.EnableNumberChallenge");
         assertEquals(propertyNames[1], "PUSH.EnableProgressiveEnrollment");
         assertEquals(propertyNames[2], "PUSH.ResendNotificationTime");
         assertEquals(propertyNames[3], "PUSH.ResendNotificationMaxAttempts");
+        assertEquals(propertyNames[4], "PUSH.EnableMultipleDeviceProgressiveEnrollment");
     }
 
     @Test
@@ -122,6 +127,8 @@ public class PushAuthenticatorConfigImplTest {
             mockedUtil.when(() -> IdentityUtil.getProperty("PUSH.EnableProgressiveEnrollment")).thenReturn("true");
             mockedUtil.when(() -> IdentityUtil.getProperty("PUSH.ResendNotificationTime")).thenReturn("120");
             mockedUtil.when(() -> IdentityUtil.getProperty("PUSH.ResendNotificationMaxAttempts")).thenReturn("5");
+            mockedUtil.when(() -> IdentityUtil.getProperty("PUSH.EnableMultipleDeviceProgressiveEnrollment"))
+                    .thenReturn("true");
 
             Properties properties = pushAuthenticatorConfig.getDefaultPropertyValues("carbon.super");
             assertNotNull(properties);
@@ -129,6 +136,7 @@ public class PushAuthenticatorConfigImplTest {
             assertEquals(properties.getProperty("PUSH.EnableProgressiveEnrollment"), "true");
             assertEquals(properties.getProperty("PUSH.ResendNotificationTime"), "120");
             assertEquals(properties.getProperty("PUSH.ResendNotificationMaxAttempts"), "5");
+            assertEquals(properties.getProperty("PUSH.EnableMultipleDeviceProgressiveEnrollment"), "true");
         }
     }
 }

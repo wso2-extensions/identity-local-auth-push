@@ -145,6 +145,7 @@
                             org.wso2.carbon.identity.notification.push.device.handler.exception; version="${identity.notification.push.import.version.range}",
                             org.wso2.carbon.identity.notification.push.device.handler.model; version="${identity.notification.push.import.version.range}",
                             org.wso2.carbon.identity.notification.push.device.handler.constant; version="${identity.notification.push.import.version.range}",
+                            org.wso2.carbon.identity.notification.push.device.handler.utils; version="${identity.notification.push.import.version.range}",
                             org.wso2.carbon.identity.event; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.event.event; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.event.services; version="${carbon.identity.framework.imp.pkg.version.range}",

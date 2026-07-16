@@ -28,6 +28,7 @@ import org.json.JSONObject;
 import org.osgi.service.component.annotations.Component;
 import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthContextManager;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
+import org.wso2.carbon.identity.local.auth.push.servlet.cache.PushAuthStatusCacheEntry;
 import org.wso2.carbon.identity.local.auth.push.servlet.constant.PushServletConstants;
 import org.wso2.carbon.identity.local.auth.push.servlet.impl.PushAuthStatusCacheManagerImpl;
 import org.wso2.carbon.identity.local.auth.push.servlet.internal.PushServletDataHolder;
@@ -148,7 +149,7 @@ public class PushAuthServlet extends HttpServlet {
                 handleAPIErrorResponse(response, error, HttpServletResponse.SC_BAD_REQUEST);
             } else {
 
-                boolean isSuccessful = addToContext(pushAuthId, token, response);
+                boolean isSuccessful = addToContext(pushAuthId, token, deviceId, response);
                 if (!isSuccessful) {
                     return;
                 }
@@ -251,17 +252,30 @@ public class PushAuthServlet extends HttpServlet {
     }
 
     /**
-     * Add the received auth response token to the authentication context.
+     * Add the received auth response token and the responding device ID to the authentication context.
      *
      * @param pushAuthId Push authentication ID
      * @param token      Auth response token
+     * @param deviceId   ID of the device that responded
      * @param response   HTTP response
      */
-    private boolean addToContext(String pushAuthId, String token, HttpServletResponse response) {
+    private boolean addToContext(String pushAuthId, String token, String deviceId, HttpServletResponse response) {
 
         PushAuthContextManager contextManager = PushServletDataHolder.getInstance().getPushAuthContextManager();
         PushAuthContext context = contextManager.getContext(pushAuthId);
         if (context == null) {
+            // check if the request is already handled by another device
+            PushAuthStatusCacheEntry statusEntry = pushAuthStatusCacheManager.getStatusCache(pushAuthId);
+            if (statusEntry != null
+                    && PushServletConstants.Status.COMPLETED.name().equals(statusEntry.getStatus())) {
+                PushServletConstants.ErrorMessages error =
+                        PushServletConstants.ErrorMessages.ERROR_CODE_AUTH_REQUEST_ALREADY_HANDLED;
+                if (log.isDebugEnabled()) {
+                    log.debug(String.format(error.getDescription(), pushAuthId));
+                }
+                handleAPIErrorResponse(response, error, HttpServletResponse.SC_GONE);
+                return false;
+            }
             PushServletConstants.ErrorMessages error =
                     PushServletConstants.ErrorMessages.ERROR_CODE_ERROR_AUTH_CONTEXT_NOT_FOUND;
             if (log.isDebugEnabled()) {
@@ -271,11 +285,32 @@ public class PushAuthServlet extends HttpServlet {
             return false;
         }
 
+        /*
+         * First response wins. If a token is already present in the context, another device has already responded
+         * to this authentication request, and the response from this device should not overwrite it.
+         * applies where both responses come at the nearly same time
+         */
+        if (StringUtils.isNotBlank(context.getToken())) {
+            PushServletConstants.ErrorMessages error =
+                    PushServletConstants.ErrorMessages.ERROR_CODE_AUTH_REQUEST_ALREADY_HANDLED;
+            if (log.isDebugEnabled()) {
+                log.debug(String.format(error.getDescription(), pushAuthId));
+            }
+            handleAPIErrorResponse(response, error, HttpServletResponse.SC_GONE);
+            return false;
+        }
+
         // Invalidating the existing cache across the cluster.
         contextManager.clearContext(pushAuthId);
 
         // Store the new context with the updated token.
         context.setToken(token);
+        context.setRespondingDeviceId(deviceId);
+        /*
+         * Mirror the responder onto the legacy deviceId field so that an older node processing this context
+         * (which reads getDeviceId()) still validates against the correct responding device during a rolling upgrade.
+         */
+        context.setDeviceId(deviceId);
         contextManager.storeContext(pushAuthId, context);
         return true;
     }

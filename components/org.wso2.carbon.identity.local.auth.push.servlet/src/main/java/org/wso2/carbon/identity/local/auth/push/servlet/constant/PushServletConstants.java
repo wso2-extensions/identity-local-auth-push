@@ -97,6 +97,12 @@ public class PushServletConstants {
                 "PBA-15010",
                 "Push Authentication context not found for the relevant pushAuthId.",
                 "Push Authentication context not found for the pushAuthId: %s."
+        ),
+        ERROR_CODE_AUTH_REQUEST_ALREADY_HANDLED(
+                "PBA-15011",
+                "Authentication request has already been completed or has expired.",
+                "A response has already been received for the pushAuthId: %s, or the authentication "
+                        + "request has expired."
         ),;
 
         private final String code;

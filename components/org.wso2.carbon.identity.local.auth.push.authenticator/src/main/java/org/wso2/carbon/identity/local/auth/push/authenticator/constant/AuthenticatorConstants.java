@@ -54,6 +54,7 @@ public class AuthenticatorConstants {
     public static final String PUSH_NOTIFICATION_CHANNEL = "PUSH_NOTIFICATION";
     public static final String USER_AGENT = "user-agent";
     public static final String IS_DEVICE_REGISTRATION_ENGAGED = "isDeviceRegistrationEngaged";
+    public static final String IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED = "isAdditionalDeviceRegistrationEngaged";
     // Endpoint URLs.
     public static final String PUSH_AUTH_WAIT_PAGE = "authenticationendpoint/pushAuth.jsp";
     public static final String PUSH_DEVICE_REGISTRATION_PAGE = "authenticationendpoint/pushEnroll.jsp";
@@ -76,6 +77,8 @@ public class AuthenticatorConstants {
             "&authFailure=true&authFailureMsg=error.push.internal.error";
     public static final String ERROR_USER_REGISTERED_DEVICE_NOT_FOUND =
             "&authFailure=true&authFailureMsg=error.push.registered.device.not.found";
+    public static final String ERROR_USER_EXCEEDS_MAX_DEVICE_LIMIT =
+            "&authFailure=true&authFailureMsg=error.push.max.device.limit.reached";
     public static final String ERROR_PUSH_AUTHENTICATION_FAILED =
             "&authFailure=true&authFailureMsg=error.push.authentication.failed";
     public static final String SCREEN_VALUE_QUERY_PARAM = "&screenValue=";
@@ -87,6 +90,9 @@ public class AuthenticatorConstants {
     public static final String NUMBER_CHALLENGE_PARAM = "&numberChallenge=";
     public static final String ENROLL_DATA_PARAM = "&pushEnrollData=";
     public static final String TENANT_DOMAIN_PARAM = "&tenantDomain=";
+    public static final String CAN_REGISTER_DEVICE_PARAM = "&canRegisterDevice=";
+    public static final String CAN_GO_BACK_PARAM = "&canGoBack=";
+    public static final String CAN_REGISTER_NEW_DEVICE = "canRegisterNewDevice";
     public static final String NOTIFICATION_RESEND_ATTEMPTS = "notificationResendAttempts";
     public static final int DEFAULT_NOTIFICATION_RESEND_ATTEMPTS = 5;
     public static final String SCENARIO = "scenario";
@@ -122,6 +128,8 @@ public class AuthenticatorConstants {
         RESEND_PUSH_NOTIFICATION("RESEND_PUSH_NOTIFICATION"),
         PROCEED_PUSH_AUTHENTICATION("PROCEED_PUSH_AUTHENTICATION"),
         PUSH_DEVICE_ENROLLMENT("PUSH_DEVICE_ENROLLMENT"),
+        MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT("MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT"),
+        CANCEL_PUSH_DEVICE_ENROLLMENT("CANCEL_PUSH_DEVICE_ENROLLMENT"),
         INIT_PUSH_ENROLL("INIT_PUSH_ENROLL"),
         CANCEL_PUSH_ENROLL("CANCEL_PUSH_ENROLL"),
         PUSH_AUTHENTICATION("PUSH_AUTHENTICATION"),
@@ -266,6 +274,29 @@ public class AuthenticatorConstants {
         public static final String ENABLE_PUSH_NUMBER_CHALLENGE = "PUSH.EnableNumberChallenge";
         public static final String ENABLE_RESEND_NOTIFICATION_TIME = "PUSH.ResendNotificationTime";
         public static final String RESEND_NOTIFICATION_MAX_ATTEMPTS = "PUSH.ResendNotificationMaxAttempts";
+        public static final String ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT
+                = "PUSH.EnableMultipleDeviceProgressiveEnrollment";
     }
 
+    /**
+     * Constants used when publishing diagnostic logs for the push notification authenticator.
+     */
+    public static class LogConstants {
+
+        public static final String PROCESS_PUSH_AUTHENTICATION_RESPONSE_ACTION = "process-push-authentication-response";
+        public static final String AUTHENTICATION_SUCCESS_RESULT_MESSAGE =
+                "User successfully authenticated via push notification.";
+        public static final String AUTHENTICATION_FAILURE_RESULT_MESSAGE =
+                "User failed to authenticate via push notification.";
+
+        /**
+         * Keys used for diagnostic log input parameters.
+         */
+        public static class InputKeys {
+
+            public static final String USER = "user-id";
+            public static final String DEVICE_ID = "device-id";
+            public static final String PUSH_AUTH_ID = "push-auth-id";
+        }
+    }
 }
