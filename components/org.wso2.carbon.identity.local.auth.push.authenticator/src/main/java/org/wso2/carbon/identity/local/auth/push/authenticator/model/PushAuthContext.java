@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.local.auth.push.authenticator.model;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Data holder for Push Authentication Context.
@@ -31,6 +32,8 @@ public class PushAuthContext implements Serializable {
     private String numberChallenge;
     private String deviceId;
     private String scenario;
+    private List<String> notifiedDeviceIds;
+    private String respondingDeviceId;
 
     public String getChallenge() {
 
@@ -80,5 +83,25 @@ public class PushAuthContext implements Serializable {
     public void setScenario(String scenario) {
 
         this.scenario = scenario;
+    }
+
+    public List<String> getNotifiedDeviceIds() {
+
+        return notifiedDeviceIds;
+    }
+
+    public void setNotifiedDeviceIds(List<String> notifiedDeviceIds) {
+
+        this.notifiedDeviceIds = notifiedDeviceIds;
+    }
+
+    public String getRespondingDeviceId() {
+
+        return respondingDeviceId;
+    }
+
+    public void setRespondingDeviceId(String respondingDeviceId) {
+
+        this.respondingDeviceId = respondingDeviceId;
     }
 }

@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -62,7 +63,9 @@ import org.wso2.carbon.identity.notification.push.common.PushChallengeValidator;
 import org.wso2.carbon.identity.notification.push.common.exception.PushTokenValidationException;
 import org.wso2.carbon.identity.notification.push.device.handler.exception.PushDeviceHandlerException;
 import org.wso2.carbon.identity.notification.push.device.handler.model.Device;
+import org.wso2.carbon.identity.notification.push.device.handler.model.PushDeviceMgtConfigData;
 import org.wso2.carbon.identity.notification.push.device.handler.model.RegistrationDiscoveryData;
+import org.wso2.carbon.identity.notification.push.device.handler.utils.PushDeviceConfigManager;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -70,6 +73,7 @@ import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 import ua_parser.Client;
 import ua_parser.Parser;
@@ -77,6 +81,7 @@ import ua_parser.Parser;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +107,11 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.AUTH_REQUEST_STATUS_APPROVED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.AUTH_REQUEST_STATUS_DENIED;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.CAN_GO_BACK_PARAM;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.CAN_REGISTER_DEVICE_PARAM;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.CAN_REGISTER_NEW_DEVICE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.CHALLENGE;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.RESEND_NOTIFICATION_MAX_ATTEMPTS;
@@ -117,6 +126,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_TOKEN_RESPONSE_FAILURE_QUERY_PARAMS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_USER_DENIED_CONSENT_QUERY_PARAMS;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_USER_EXCEEDS_MAX_DEVICE_LIMIT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_USER_REGISTERED_DEVICE_NOT_FOUND;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_AUTHENTICATION_CONTEXT_NOT_FOUND;
@@ -154,6 +164,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IDF_HANDLER_NAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.INVALID_USERNAME;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IP_ADDRESS;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_API_BASED_AND_NO_DEVICE_ENROLLED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_DEVICE_REGISTRATION_ENGAGED;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.IS_LOGIN_ATTEMPT_BY_INVALID_USER;
@@ -182,9 +193,11 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.REQUEST_DEVICE_OS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.RETRY_QUERY_PARAMS;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.SCENARIO;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.CANCEL_PUSH_DEVICE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.CANCEL_PUSH_ENROLL;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.INIT_PUSH_ENROLL;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.LOGOUT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PROCEED_PUSH_AUTHENTICATION;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PUSH_AUTHENTICATION;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PUSH_DEVICE_ENROLLMENT;
@@ -224,7 +237,9 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                         SEND_PUSH_NOTIFICATION.getValue().equals(request.getParameter(SCENARIO)) ||
                         INIT_PUSH_ENROLL.getValue().equals(request.getParameter(SCENARIO)) ||
                         CANCEL_PUSH_ENROLL.getValue().equals(request.getParameter(SCENARIO)) ||
-                        PUSH_DEVICE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO)));
+                        PUSH_DEVICE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO)) ||
+                        MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO)) ||
+                        CANCEL_PUSH_DEVICE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO)));
 
         boolean canHandle = isScenarioAvailable || isUsernameAvailable;
 
@@ -255,7 +270,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
             case SEND_PUSH_NOTIFICATION:
             case PUSH_DEVICE_ENROLLMENT:
+            case MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT:
                 initiateAuthenticationRequest(request, response, context);
+                return AuthenticatorFlowStatus.INCOMPLETE;
+            case CANCEL_PUSH_DEVICE_ENROLLMENT:
+                handleProgressiveEnrollmentCancellation(request, response, context);
                 return AuthenticatorFlowStatus.INCOMPLETE;
             case INIT_PUSH_ENROLL:
                 context.setProperty(IS_DEVICE_REGISTRATION_ENGAGED, true);
@@ -382,7 +401,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
 
         AuthenticatorConstants.ScenarioTypes scenario = resolveScenario(request, context);
         if (scenario == SEND_PUSH_NOTIFICATION || scenario == RESEND_PUSH_NOTIFICATION
-                || scenario == PUSH_DEVICE_ENROLLMENT) {
+                || scenario == PUSH_DEVICE_ENROLLMENT || scenario == MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT) {
 
             // Check if the user has exceeded the maximum number of resend attempts.
             if (scenario == RESEND_PUSH_NOTIFICATION && context.getProperty(NOTIFICATION_RESEND_ATTEMPTS) != null) {
@@ -397,15 +416,15 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 }
             }
 
-            Device device;
+            List<Device> devices;
             try {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Attempting to retrieve device for user: " +
                             AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
                             " in tenantDomain: " + tenantDomain);
                 }
-                device = AuthenticatorDataHolder.getInstance().getDeviceHandlerService()
-                        .getDeviceByUserId(authenticatedUserFromContext.getUserId(), tenantDomain);
+                devices = AuthenticatorDataHolder.getInstance().getDeviceHandlerService()
+                        .getDevicesByUserId(authenticatedUserFromContext.getUserId(), tenantDomain);
             } catch (UserIdNotFoundException e) {
                 String error = String.format(
                         ERROR_CODE_ERROR_GETTING_USER_ID.getMessage(),
@@ -419,7 +438,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                         LOG.debug("No device found for user: " +
                                 AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()));
                     }
-                    device = null;
+                    devices = Collections.emptyList();
                 } else {
                     String error = String.format(
                             ERROR_CODE_ERROR_GETTING_USER_DEVICE.getMessage(),
@@ -429,8 +448,19 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 }
             }
 
-            // If device is null, that means the user does not have a device registered.
-            if (device == null) {
+            boolean returnedFromDeviceRegistration =
+                    Boolean.TRUE.equals(context.getProperty(IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED));
+            if (returnedFromDeviceRegistration) {
+                expireExistingPushAuthContext(context);
+            }
+            context.removeProperty(IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED);
+
+            // Check whether this is an already-enrolled user requesting to enroll an additional device.
+            boolean isAdditionalDeviceEnrollmentRequest = !returnedFromDeviceRegistration
+                    && (scenario == MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT || scenario == PUSH_DEVICE_ENROLLMENT);
+
+            // If device list is empty, that means the user does not have a device registered.
+            if (devices.isEmpty()) {
 
                 // If API based authentication, return an error response.
                 if (isAPIBasedAuthRequest(request)) {
@@ -488,38 +518,75 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     throw new AuthenticationFailedException(ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA.getCode(),
                             error, e);
                 }
+            } else if (isAdditionalDeviceEnrollmentRequest
+                    && isMultipleDeviceProgressiveEnrollmentEnabled(tenantDomain)) {
+                // The user is already enrolled and is requesting to enroll an additional device.
+                PushDeviceMgtConfigData deviceManagementConfig = getDeviceManagementConfig(tenantDomain);
+                if (Boolean.TRUE.equals(deviceManagementConfig.getEnableMultipleDeviceEnrollment())) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Multiple device enrollment requested by an already-enrolled user: " +
+                                AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
+                                ", existing device count: " + devices.size());
+                    }
+                    handleAdditionalDeviceEnrollment(authenticatedUserFromContext, devices, response, request, context,
+                            tenantDomain, deviceManagementConfig);
+                    return;
+                }
             }
 
             // If the code reaches this point, the user has a device registered.
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Device found for user: " +
+                LOG.debug("Devices found for user: " +
                         AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                        ", deviceId: " + device.getDeviceId());
+                        ", device count: " + devices.size());
             }
             prepareAuthChallenges(pushAuthContext, tenantDomain);
-            pushAuthContext.setDeviceId(device.getDeviceId());
+            pushAuthContext.setDeviceId(devices.getFirst().getDeviceId());
             pushAuthContext.setScenario(PUSH_AUTHENTICATION.getValue());
             pushAuthContextManager.storeContext(pushAuthId, pushAuthContext);
             context.setProperty(PUSH_AUTH_ID, pushAuthId);
 
-            try {
-                LOG.debug("Triggering push notification event.");
-                triggerNotificationEvent(context, authenticatedUserFromContext, device, pushAuthContext, request);
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Push notification triggered successfully for user: " +
-                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
-                            ", pushAuthId: " + pushAuthId);
+            List<String> notifiedDeviceIds = new ArrayList<>();
+            for (Device device : devices) {
+                try {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Triggering push notification event for device: " + device.getDeviceId());
+                    }
+                    triggerNotificationEvent(context, authenticatedUserFromContext, device, pushAuthContext, request);
+                    notifiedDeviceIds.add(device.getDeviceId());
+                } catch (IdentityEventException e) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Failed to trigger push notification for device: " + device.getDeviceId() +
+                                ". Skipping.");
+                    }
                 }
-            } catch (IdentityEventException e) {
+            }
+
+            if (notifiedDeviceIds.isEmpty()) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Failed to trigger push notification event for user: " +
-                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()), e);
+                    LOG.debug("Failed to trigger push notification event for any device for user: " +
+                            AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()));
                 }
-                pushAuthContextManager.clearContext(PUSH_AUTH_ID);
+                pushAuthContextManager.clearContext(pushAuthId);
                 context.removeProperty(PUSH_AUTH_ID);
                 handleNotificationEventFailureScenario(request, response, context);
                 return;
             }
+
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Push notifications triggered successfully for user: " +
+                        AuthenticatorUtils.maskIfRequired(authenticatedUserFromContext.getUserName()) +
+                        ", notified device count: " + notifiedDeviceIds.size() +
+                        ", pushAuthId: " + pushAuthId);
+            }
+
+            // Persist the notified device IDs so they can be validated when a device responds.
+            pushAuthContext.setNotifiedDeviceIds(notifiedDeviceIds);
+            pushAuthContextManager.storeContext(pushAuthId, pushAuthContext);
+
+            // Determine whether the user is allowed to enroll an additional device from the polling page.
+            context.setProperty(CAN_REGISTER_NEW_DEVICE,
+                    canEnrollAdditionalDevice(tenantDomain, devices.size(), getDeviceManagementConfig(tenantDomain)));
 
             if (scenario == RESEND_PUSH_NOTIFICATION) {
                 LOG.debug("Since this is a resend request, updating the resend count in the context.");
@@ -619,13 +686,30 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
         }
 
-        String deviceId = pushAuthContext.getDeviceId();
+        /*
+         * Prefer the device that actually responded (set by the servlet when a device replies). Fall back to the
+         * legacy single deviceId for contexts written by an older node/servlet that did not record the responder.
+         */
+        String deviceId = StringUtils.isNotBlank(pushAuthContext.getRespondingDeviceId())
+                ? pushAuthContext.getRespondingDeviceId()
+                : pushAuthContext.getDeviceId();
         if (StringUtils.isBlank(deviceId)) {
             LOG.debug("DeviceId not found in push auth context.");
             handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
             throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
                     ERROR_CODE_DEVICE_ID_NOT_FOUND,
                     AuthenticatorUtils.maskIfRequired(authenticatingUser.getUserName()));
+        }
+
+        // Ensure the responding device was among the devices that were originally notified.
+        List<String> notifiedDeviceIds = pushAuthContext.getNotifiedDeviceIds();
+        if (notifiedDeviceIds != null && !notifiedDeviceIds.isEmpty() && !notifiedDeviceIds.contains(deviceId)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Responding device is not among the notified devices for pushAuthId: " + pushAuthId);
+            }
+            handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_INTERNAL_ERROR_QUERY_PARAMS);
+            throw handleAuthErrorScenario(PUSH_AUTH_FAIL_TOKEN_RESPONSE_FAILED, context,
+                    ERROR_CODE_DEVICE_ID_NOT_FOUND, deviceId);
         }
 
         String publicKey;
@@ -717,6 +801,27 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                 LOG.debug(String.format("User: %s authenticated successfully via push notification.",
                         authenticatedUserFromContext.getUserName()));
             }
+
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                try {
+                    DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                            PUSH_AUTHENTICATOR_NAME,
+                            AuthenticatorConstants.LogConstants.PROCESS_PUSH_AUTHENTICATION_RESPONSE_ACTION);
+                    diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                            .resultMessage(AuthenticatorConstants.LogConstants.AUTHENTICATION_SUCCESS_RESULT_MESSAGE)
+                            .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.USER,
+                                    authenticatedUserFromContext.getUserId())
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.DEVICE_ID, deviceId)
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.PUSH_AUTH_ID, pushAuthId);
+                    LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+                } catch (UserIdNotFoundException e) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Failed to retrieve userId for diagnostic log.", e);
+                    }
+                }
+            }
+
             resetAuthFailedAttempts(authenticatingUser, isInitialFederationAttempt);
             context.setSubject(authenticatedUserFromContext);
             pushAuthContextManager.clearContext(pushAuthId);
@@ -732,6 +837,26 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             }
             pushAuthContextManager.clearContext(pushAuthId);
             context.removeProperty(PUSH_AUTH_ID);
+
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                try {
+                    DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                            PUSH_AUTHENTICATOR_NAME,
+                            AuthenticatorConstants.LogConstants.PROCESS_PUSH_AUTHENTICATION_RESPONSE_ACTION);
+                    diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.FAILED)
+                            .resultMessage(AuthenticatorConstants.LogConstants.AUTHENTICATION_FAILURE_RESULT_MESSAGE)
+                            .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.USER,
+                                    authenticatedUserFromContext.getUserId())
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.DEVICE_ID, deviceId)
+                            .inputParam(AuthenticatorConstants.LogConstants.InputKeys.PUSH_AUTH_ID, pushAuthId);
+                    LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+                } catch (UserIdNotFoundException e) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Failed to retrieve userId for diagnostic log.", e);
+                    }
+                }
+            }
 
             // At this point, authentication is failed. Hence, initiate authentication failure handling.
             handlePushAuthVerificationFail(authenticatingUser, isInitialFederationAttempt);
@@ -955,6 +1080,12 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
         } else if (StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
                 PUSH_DEVICE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO))) {
             return PUSH_DEVICE_ENROLLMENT;
+        } else if (StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
+                MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO))) {
+            return MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT;
+        } else if (StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
+                CANCEL_PUSH_DEVICE_ENROLLMENT.getValue().equals(request.getParameter(SCENARIO))) {
+            return CANCEL_PUSH_DEVICE_ENROLLMENT;
         } else if (StringUtils.isNotBlank(request.getParameter(SCENARIO)) &&
                 INIT_PUSH_ENROLL.getValue().equals(request.getParameter(SCENARIO))) {
             return INIT_PUSH_ENROLL;
@@ -1180,6 +1311,7 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
      * @param request           HttpServletRequest.
      * @param context           AuthenticationContext.
      * @param pushId            Push ID.
+     * @param numberChallenge   Number challenge.
      * @return Query params for the push wait page.
      * @throws AuthenticationFailedException If an error occurred while building query params.
      */
@@ -1209,6 +1341,11 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             queryParamsBuilder.append(RETRY_QUERY_PARAMS);
         }
 
+        // Signal to the wait page whether the user is allowed to enroll an additional device.
+        if (Boolean.TRUE.equals(context.getProperty(CAN_REGISTER_NEW_DEVICE))) {
+            queryParamsBuilder.append(CAN_REGISTER_DEVICE_PARAM).append(Boolean.TRUE);
+        }
+
         return queryParamsBuilder;
     }
 
@@ -1225,12 +1362,33 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
                                               String enrollData)
             throws AuthenticationFailedException {
 
+        redirectToRegistrationPage(authenticatedUser, response, request, context, enrollData, false);
+    }
+
+    /**
+     * Redirect the user to the device registration page.
+     *
+     * @param canGoBack Whether the registration page should render a Back button.
+     */
+    private void redirectToRegistrationPage(AuthenticatedUser authenticatedUser, HttpServletResponse response,
+                                              HttpServletRequest request, AuthenticationContext context,
+                                              String enrollData, boolean canGoBack)
+            throws AuthenticationFailedException {
+
         try {
             StringBuilder queryParamsBuilder = buildQueryParamsForRegistrationPage(authenticatedUser, request, context,
                     enrollData);
+            if (canGoBack) {
+                queryParamsBuilder.append(CAN_GO_BACK_PARAM).append(Boolean.TRUE);
+            }
             String pushDeviceRegistrationPageUrl = getRegistrationPageUrl();
             String url = FrameworkUtils.appendQueryParamsStringToUrl(pushDeviceRegistrationPageUrl,
                     queryParamsBuilder.toString());
+            /*
+             * Mark that the user has been routed to the device registration page so that the return from registration
+             * (which also submits the PUSH_DEVICE_ENROLLMENT scenario) is not treated as a fresh enrollment request.
+             */
+            context.setProperty(IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED, true);
             response.sendRedirect(url);
         } catch (IOException e) {
             throw handleAuthErrorScenario(ERROR_CODE_ERROR_REDIRECTING_TO_DEVICE_REGISTRATION_PAGE, e, null);
@@ -1879,5 +2037,171 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
     private boolean isAPIBasedAuthRequest(HttpServletRequest request) {
 
         return Boolean.TRUE.equals(request.getAttribute(FrameworkConstants.IS_API_BASED_AUTH_FLOW));
+    }
+
+    /**
+     * Check whether the multiple device progressive enrollment is enabled for the tenant.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return True if the multiple device progressive enrollment is enabled.
+     * @throws AuthenticationFailedException If an error occurred while checking the configuration.
+     */
+    protected boolean isMultipleDeviceProgressiveEnrollmentEnabled(String tenantDomain)
+            throws AuthenticationFailedException {
+
+        try {
+            return Boolean.parseBoolean(AuthenticatorUtils.getPushAuthenticatorConfig(
+                            ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, tenantDomain));
+        } catch (PushAuthenticatorServerException e) {
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_GETTING_CONFIG);
+        }
+    }
+
+    /**
+     * Handle the scenario where an already-enrolled user requests to enroll an additional device.
+     *
+     * @param authenticatedUser The authenticated user.
+     * @param devices           The devices already registered for the user.
+     * @param response          HttpServletResponse.
+     * @param request           HttpServletRequest.
+     * @param context           AuthenticationContext.
+     * @param tenantDomain           Tenant domain.
+     * @param deviceManagementConfig The push device management configuration for the tenant.
+     * @throws AuthenticationFailedException If an error occurred while handling the enrollment.
+     */
+    private void handleAdditionalDeviceEnrollment(AuthenticatedUser authenticatedUser, List<Device> devices,
+                                                  HttpServletResponse response, HttpServletRequest request,
+                                                  AuthenticationContext context, String tenantDomain,
+                                                  PushDeviceMgtConfigData deviceManagementConfig)
+            throws AuthenticationFailedException {
+
+        if (devices.size() >= getMaximumDeviceLimit(deviceManagementConfig)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("User has reached the maximum number of enrolled devices: " +
+                        AuthenticatorUtils.maskIfRequired(authenticatedUser.getUserName()) +
+                        ". Existing device count: " + devices.size());
+            }
+            handlePushAuthFailedScenario(request, response, context, ERROR_USER_EXCEEDS_MAX_DEVICE_LIMIT);
+            return;
+        }
+
+        if (!isProgressiveDeviceEnrollmentEnabled(tenantDomain)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("User is not allowed to enroll an additional device: " +
+                        AuthenticatorUtils.maskIfRequired(authenticatedUser.getUserName()) +
+                        ". Existing device count: " + devices.size());
+            }
+            handlePushAuthFailedScenario(request, response, context, ERROR_USER_REGISTERED_DEVICE_NOT_FOUND);
+            return;
+        }
+
+        // All checks passed. Proceed with the normal progressive enrollment flow.
+        try {
+            LOG.debug("Retrieving registration discovery data for additional device enrollment.");
+            RegistrationDiscoveryData registrationData = AuthenticatorDataHolder.getInstance()
+                    .getDeviceHandlerService().getRegistrationDiscoveryData(
+                            authenticatedUser.toFullQualifiedUsername(), tenantDomain);
+            String encodedData = Base64.getEncoder().encodeToString(registrationData.buildJSON().getBytes());
+            LOG.debug("Redirecting user to device registration page for additional device enrollment.");
+            redirectToRegistrationPage(authenticatedUser, response, request, context, encodedData, true);
+        } catch (PushDeviceHandlerException e) {
+            String error = String.format(
+                    ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA.getMessage(),
+                    AuthenticatorUtils.maskIfRequired(authenticatedUser.getUserName()));
+            throw new AuthenticationFailedException(ERROR_CODE_ERROR_GETTING_REGISTRATION_DATA.getCode(), error, e);
+        }
+    }
+
+    /**
+     * Expire the push notifications already sent to the existing devices by clearing the cached push auth context.
+     *
+     * @param context AuthenticationContext.
+     */
+    private void expireExistingPushAuthContext(AuthenticationContext context) {
+
+        Object existingPushAuthId = context.getProperty(PUSH_AUTH_ID);
+        if (existingPushAuthId != null && StringUtils.isNotBlank(existingPushAuthId.toString())) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Expiring push notifications sent to existing devices for pushAuthId: " +
+                        existingPushAuthId);
+            }
+            pushAuthContextManager.clearContext(existingPushAuthId.toString());
+            context.removeProperty(PUSH_AUTH_ID);
+        }
+    }
+
+    /**
+     * Handle the Back button submission from the additional-device registration page.
+     */
+    private void handleProgressiveEnrollmentCancellation(HttpServletRequest request, HttpServletResponse response,
+                                                         AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        context.removeProperty(IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED);
+
+        String activePushAuthId = context.getProperty(PUSH_AUTH_ID).toString();
+        if (StringUtils.isBlank(activePushAuthId)) {
+            // Defensive: should never happen because we never strip PUSH_AUTH_ID on the way to the QR page.
+            LOG.debug("Cancel progressive enrollment received with no active pushAuthId on context.");
+            handlePushAuthFailedScenario(request, response, context, ERROR_PUSH_AUTHENTICATION_FAILED);
+            return;
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Resuming push wait page for pushAuthId: " + activePushAuthId);
+        }
+
+        PushAuthContext cachedContext = pushAuthContextManager.getContext(activePushAuthId);
+        String numberChallenge = cachedContext != null ? cachedContext.getNumberChallenge() : null;
+        AuthenticatedUser authenticatedUser = getAuthenticatedUserFromContext(context);
+        redirectToPushAuthWaitPage(authenticatedUser, response, request, context, activePushAuthId, numberChallenge);
+    }
+
+    /**
+     * Check whether the user is allowed to enroll an additional device.
+     *
+     * @param tenantDomain           Tenant domain.
+     * @param deviceCount            Number of devices already registered for the user.
+     * @param deviceManagementConfig The push device management configuration for the tenant.
+     * @return True if the user can enroll an additional device.
+     * @throws AuthenticationFailedException If an error occurred while retrieving the configuration.
+     */
+    private boolean canEnrollAdditionalDevice(String tenantDomain, int deviceCount,
+                                              PushDeviceMgtConfigData deviceManagementConfig)
+            throws AuthenticationFailedException {
+
+        return isMultipleDeviceProgressiveEnrollmentEnabled(tenantDomain)
+                && Boolean.TRUE.equals(deviceManagementConfig.getEnableMultipleDeviceEnrollment())
+                && isProgressiveDeviceEnrollmentEnabled(tenantDomain)
+                && deviceCount < getMaximumDeviceLimit(deviceManagementConfig);
+    }
+
+    /**
+     * Get the maximum number of devices a user is allowed to enroll from the device management configuration.
+     *
+     * @param deviceManagementConfig The push device management configuration for the tenant.
+     * @return The maximum device limit.
+     */
+    private int getMaximumDeviceLimit(PushDeviceMgtConfigData deviceManagementConfig) {
+
+        Integer maximumDeviceLimit = deviceManagementConfig.getMaximumDeviceLimit();
+        return maximumDeviceLimit != null ? maximumDeviceLimit : 2;
+    }
+
+    /**
+     * Retrieve the push device management configuration for the tenant.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return The push device management configuration.
+     * @throws AuthenticationFailedException If an error occurred while retrieving the configuration.
+     */
+    private PushDeviceMgtConfigData getDeviceManagementConfig(String tenantDomain)
+            throws AuthenticationFailedException {
+
+        try {
+            return PushDeviceConfigManager.getPushDeviceConfig(tenantDomain);
+        } catch (PushDeviceHandlerException e) {
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_GETTING_CONFIG, e);
+        }
     }
 }

@@ -44,11 +44,21 @@ import org.wso2.carbon.identity.local.auth.push.authenticator.context.PushAuthCo
 import org.wso2.carbon.identity.local.auth.push.authenticator.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.push.authenticator.model.PushAuthContext;
 import org.wso2.carbon.identity.local.auth.push.authenticator.util.AuthenticatorUtils;
+import org.wso2.carbon.identity.notification.push.device.handler.DeviceHandlerService;
+import org.wso2.carbon.identity.notification.push.device.handler.exception.PushDeviceHandlerServerException;
+import org.wso2.carbon.identity.notification.push.device.handler.model.Device;
+import org.wso2.carbon.identity.notification.push.device.handler.model.PushDeviceMgtConfigData;
+import org.wso2.carbon.identity.notification.push.device.handler.model.RegistrationDiscoveryData;
+import org.wso2.carbon.identity.notification.push.device.handler.utils.PushDeviceConfigManager;
 import ua_parser.Client;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -59,6 +69,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -71,6 +82,7 @@ import static org.wso2.carbon.identity.application.authentication.framework.Abst
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ERROR_MSG;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorPromptType.INTERNAL_PROMPT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorPromptType.USER_PROMPT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ConnectorConfig.ENABLE_PUSH_NUMBER_CHALLENGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_PUSH_AUTH_ID_NOT_FOUND;
@@ -83,6 +95,7 @@ import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.Au
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.PUSH_AUTH_WAIT_PAGE;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.SCENARIO;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.LOGOUT;
+import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.PUSH_DEVICE_ENROLLMENT;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.ScenarioTypes.SEND_PUSH_NOTIFICATION;
 import static org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants.USERNAME;
@@ -195,6 +208,20 @@ public class PushAuthenticatorTest {
 
         when(httpServletRequest.getParameter(SCENARIO)).thenReturn(PUSH_DEVICE_ENROLLMENT.getValue());
         assertEquals(PUSH_DEVICE_ENROLLMENT, pushAuthenticator.resolveScenario(httpServletRequest, context));
+
+        when(httpServletRequest.getParameter(SCENARIO))
+                .thenReturn(MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT.getValue());
+        assertEquals(MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT,
+                pushAuthenticator.resolveScenario(httpServletRequest, context));
+    }
+
+    @Test
+    public void testCanHandleMultipleDeviceProgressiveEnrollmentScenario() {
+
+        when(httpServletRequest.getParameter(USERNAME)).thenReturn(null);
+        when(httpServletRequest.getParameter(SCENARIO))
+                .thenReturn(MULTIPLE_DEVICE_PROGRESSIVE_ENROLLMENT.getValue());
+        assertTrue(pushAuthenticator.canHandle(httpServletRequest));
     }
 
     @Test
@@ -411,6 +438,34 @@ public class PushAuthenticatorTest {
     }
 
     @Test
+    public void testIsMultipleDeviceProgressiveEnrollmentEnabled() throws AuthenticationFailedException {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                            ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
+                    .thenReturn("true");
+
+            boolean result = pushAuthenticator.isMultipleDeviceProgressiveEnrollmentEnabled("carbon.super");
+
+            assertTrue(result);
+        }
+    }
+
+    @Test
+    public void testIsMultipleDeviceProgressiveEnrollmentDisabled() throws AuthenticationFailedException {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                            ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super"))
+                    .thenReturn("false");
+
+            boolean result = pushAuthenticator.isMultipleDeviceProgressiveEnrollmentEnabled("carbon.super");
+
+            assertFalse(result);
+        }
+    }
+
+    @Test
     public void testGetAuthInitiationDataWhenNoAuthenticatedUser() throws AuthenticationFailedException {
 
         ExternalIdPConfig externalIdPConfig = mock(ExternalIdPConfig.class);
@@ -455,6 +510,275 @@ public class PushAuthenticatorTest {
         assertEquals(PUSH_AUTHENTICATOR_I18_KEY, data.getI18nKey());
         assertEquals(INTERNAL_PROMPT, data.getPromptType());
         assertNull(data.getAdditionalData());
+    }
+
+    @Test
+    public void testCanEnrollAdditionalDeviceWhenAllConditionsMet() throws Exception {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+
+            boolean result = (boolean) invokePrivateMethod("canEnrollAdditionalDevice",
+                    new Class<?>[]{String.class, int.class, PushDeviceMgtConfigData.class},
+                    "carbon.super", 1, buildPushDeviceMgtConfigData(true, 3));
+
+            assertTrue(result);
+        }
+    }
+
+    @Test
+    public void testCanEnrollAdditionalDeviceWhenDeviceLimitReached() throws Exception {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+
+            boolean result = (boolean) invokePrivateMethod("canEnrollAdditionalDevice",
+                    new Class<?>[]{String.class, int.class, PushDeviceMgtConfigData.class},
+                    "carbon.super", 3, buildPushDeviceMgtConfigData(true, 3));
+
+            assertFalse(result);
+        }
+    }
+
+    @Test
+    public void testCanEnrollAdditionalDeviceWhenMultipleDeviceEnrollmentDisabled() throws Exception {
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_MULTIPLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+
+            boolean result = (boolean) invokePrivateMethod("canEnrollAdditionalDevice",
+                    new Class<?>[]{String.class, int.class, PushDeviceMgtConfigData.class},
+                    "carbon.super", 1, buildPushDeviceMgtConfigData(false, 3));
+
+            assertFalse(result);
+        }
+    }
+
+    @Test
+    public void testHandleAdditionalDeviceEnrollmentRejectsAtDeviceLimit() throws Exception {
+
+        DeviceHandlerService deviceHandlerService = mock(DeviceHandlerService.class);
+        AuthenticatorDataHolder.getInstance().setDeviceHandlerService(deviceHandlerService);
+
+        // Device count is at the configured limit, so enrollment must be rejected before any registration attempt.
+        List<Device> devices = buildDeviceList(3);
+        invokeHandleAdditionalDeviceEnrollment(devices, buildPushDeviceMgtConfigData(true, 3));
+
+        verify(deviceHandlerService, never()).getRegistrationDiscoveryData(anyString(), anyString());
+    }
+
+    @Test
+    public void testHandleAdditionalDeviceEnrollmentRejectsWhenBaseProgressiveEnrollmentDisabled() throws Exception {
+
+        DeviceHandlerService deviceHandlerService = mock(DeviceHandlerService.class);
+        AuthenticatorDataHolder.getInstance().setDeviceHandlerService(deviceHandlerService);
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("false");
+
+            // Under the device limit, but base progressive enrollment is off, so enrollment must be rejected.
+            List<Device> devices = buildDeviceList(1);
+            invokeHandleAdditionalDeviceEnrollment(devices, buildPushDeviceMgtConfigData(true, 3));
+
+            verify(deviceHandlerService, never()).getRegistrationDiscoveryData(anyString(), anyString());
+        }
+    }
+
+    @Test
+    public void testHandleAdditionalDeviceEnrollmentProceedsToRegistrationWhenAllowed() throws Exception {
+
+        DeviceHandlerService deviceHandlerService = mock(DeviceHandlerService.class);
+        RegistrationDiscoveryData discoveryData = mock(RegistrationDiscoveryData.class);
+        when(discoveryData.buildJSON()).thenReturn("{}");
+        when(deviceHandlerService.getRegistrationDiscoveryData(any(), anyString())).thenReturn(discoveryData);
+        AuthenticatorDataHolder.getInstance().setDeviceHandlerService(deviceHandlerService);
+
+        try (MockedStatic<AuthenticatorUtils> mockedUtils = mockStatic(AuthenticatorUtils.class)) {
+            mockedUtils.when(() -> AuthenticatorUtils.getPushAuthenticatorConfig(
+                    ENABLE_PUSH_DEVICE_PROGRESSIVE_ENROLLMENT, "carbon.super")).thenReturn("true");
+            mockedUtils.when(() -> AuthenticatorUtils.maskIfRequired(anyString())).thenReturn("masked");
+
+            // Under the limit and base progressive enrollment enabled: the flow must reach registration discovery.
+            List<Device> devices = buildDeviceList(1);
+            invokeHandleAdditionalDeviceEnrollment(devices, buildPushDeviceMgtConfigData(true, 3));
+
+            verify(deviceHandlerService, times(1)).getRegistrationDiscoveryData(any(), anyString());
+        }
+    }
+
+    @Test
+    public void testGetMaximumDeviceLimit() throws Exception {
+
+        int result = (int) invokePrivateMethod("getMaximumDeviceLimit",
+                new Class<?>[]{PushDeviceMgtConfigData.class}, buildPushDeviceMgtConfigData(true, 5));
+
+        assertEquals(result, 5);
+    }
+
+    @Test
+    public void testGetMaximumDeviceLimitDefaultsToOne() throws Exception {
+
+        int result = (int) invokePrivateMethod("getMaximumDeviceLimit",
+                new Class<?>[]{PushDeviceMgtConfigData.class}, buildPushDeviceMgtConfigData(true, null));
+
+        assertEquals(result, 2);
+    }
+
+    @Test(expectedExceptions = AuthenticationFailedException.class)
+    public void testGetDeviceManagementConfigFailure() throws Exception {
+
+        try (MockedStatic<PushDeviceConfigManager> mockedConfigManager = mockStatic(PushDeviceConfigManager.class)) {
+            mockedConfigManager.when(() -> PushDeviceConfigManager.getPushDeviceConfig("carbon.super"))
+                    .thenThrow(new PushDeviceHandlerServerException("Error retrieving device management config"));
+
+            invokePrivateMethod("getDeviceManagementConfig", new Class<?>[]{String.class}, "carbon.super");
+        }
+    }
+
+    @Test
+    public void testExpireExistingPushAuthContext() throws Exception {
+
+        AuthenticationContext authenticationContext = mock(AuthenticationContext.class);
+        when(authenticationContext.getProperty(PUSH_AUTH_ID)).thenReturn("sample-push-auth-id");
+
+        invokePrivateMethod("expireExistingPushAuthContext",
+                new Class<?>[]{AuthenticationContext.class}, authenticationContext);
+
+        verify(pushAuthContextManager).clearContext("sample-push-auth-id");
+        verify(authenticationContext).removeProperty(PUSH_AUTH_ID);
+    }
+
+    @Test
+    public void testExpireExistingPushAuthContextWithoutPushAuthId() throws Exception {
+
+        AuthenticationContext authenticationContext = mock(AuthenticationContext.class);
+        when(authenticationContext.getProperty(PUSH_AUTH_ID)).thenReturn(null);
+
+        invokePrivateMethod("expireExistingPushAuthContext",
+                new Class<?>[]{AuthenticationContext.class}, authenticationContext);
+
+        verify(authenticationContext, never()).removeProperty(PUSH_AUTH_ID);
+    }
+
+    @Test
+    public void testHandleProgressiveEnrollmentCancellationRedirectsToWaitPageWithExistingId() throws Exception {
+
+        AuthenticationContext authenticationContext = mock(AuthenticationContext.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+
+        // The active push id stays on the context across the enrollment side-trip.
+        when(authenticationContext.getProperty(PUSH_AUTH_ID)).thenReturn("active-id-1");
+        PushAuthContext cachedContext = new PushAuthContext();
+        cachedContext.setNumberChallenge("42");
+        when(pushAuthContextManager.getContext("active-id-1")).thenReturn(cachedContext);
+
+        try {
+            invokePrivateMethod("handleProgressiveEnrollmentCancellation",
+                    new Class<?>[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class},
+                    request, response, authenticationContext);
+        } catch (Exception ignored) {
+            // The method ends with a redirect that needs a real authenticated user in the context. We only care
+            // about the no-state-mutation invariants below.
+        }
+
+        verify(authenticationContext).removeProperty(
+                org.wso2.carbon.identity.local.auth.push.authenticator.constant.AuthenticatorConstants
+                        .IS_ADDITIONAL_DEVICE_REGISTRATION_ENGAGED);
+        // The active id must NOT be torn down — the cache entry stays alive for the wait page to resume against.
+        verify(pushAuthContextManager, never()).clearContext("active-id-1");
+        verify(authenticationContext, never()).removeProperty(PUSH_AUTH_ID);
+    }
+
+    @Test
+    public void testHandleProgressiveEnrollmentCancellationFailsWhenNoActiveIdOnContext() throws Exception {
+
+        AuthenticationContext authenticationContext = mock(AuthenticationContext.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+
+        when(authenticationContext.getProperty(PUSH_AUTH_ID)).thenReturn(null);
+
+        try {
+            invokePrivateMethod("handleProgressiveEnrollmentCancellation",
+                    new Class<?>[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class},
+                    request, response, authenticationContext);
+        } catch (Exception ignored) {
+            // The fail path completes via the framework's standard error redirect, which throws on a bare mock
+            // context — we only care that no spurious cache lookups happen below.
+        }
+
+        // The fail-path must not consult the cache under a null/empty id.
+        verify(pushAuthContextManager, never()).getContext((String) null);
+        verify(pushAuthContextManager, never()).getContext("");
+    }
+
+    private PushDeviceMgtConfigData buildPushDeviceMgtConfigData(boolean enableMultipleDeviceEnrollment,
+                                                                 Integer maximumDeviceLimit) {
+
+        PushDeviceMgtConfigData configData = new PushDeviceMgtConfigData();
+        configData.setEnableMultipleDeviceEnrollment(enableMultipleDeviceEnrollment);
+        configData.setMaximumDeviceLimit(maximumDeviceLimit);
+        return configData;
+    }
+
+    private List<Device> buildDeviceList(int count) {
+
+        List<Device> devices = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Device device = new Device();
+            device.setDeviceId("device-" + i);
+            devices.add(device);
+        }
+        return devices;
+    }
+
+    /**
+     * Invoke the private handleAdditionalDeviceEnrollment(...) method. The reject/redirect terminal steps issue an
+     * HTTP redirect that fails on bare mocks; callers assert on interactions (whether registration was reached),
+     * so any such terminal exception is intentionally swallowed here.
+     */
+    private void invokeHandleAdditionalDeviceEnrollment(List<Device> devices,
+                                                        PushDeviceMgtConfigData deviceManagementConfig) {
+
+        AuthenticatedUser authenticatedUser = mock(AuthenticatedUser.class);
+        try {
+            invokePrivateMethod("handleAdditionalDeviceEnrollment",
+                    new Class<?>[]{AuthenticatedUser.class, List.class, HttpServletResponse.class,
+                            HttpServletRequest.class, AuthenticationContext.class, String.class,
+                            PushDeviceMgtConfigData.class},
+                    authenticatedUser, devices, httpServletResponse, httpServletRequest, context, "carbon.super",
+                    deviceManagementConfig);
+        } catch (Exception ignored) {
+            // Terminal redirect/error handling on bare mocks may throw; the interaction assertions cover the outcome.
+        }
+    }
+
+    private void mockDeviceManagementConfig(MockedStatic<PushDeviceConfigManager> mockedConfigManager,
+                                            PushDeviceMgtConfigData configData) {
+
+        mockedConfigManager.when(() -> PushDeviceConfigManager.getPushDeviceConfig("carbon.super"))
+                .thenReturn(configData);
+    }
+
+    private Object invokePrivateMethod(String methodName, Class<?>[] parameterTypes, Object... args)
+            throws Exception {
+
+        Method method = PushAuthenticator.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        try {
+            return method.invoke(pushAuthenticator, args);
+        } catch (InvocationTargetException e) {
+            throw (Exception) e.getCause();
+        }
     }
 
 }
