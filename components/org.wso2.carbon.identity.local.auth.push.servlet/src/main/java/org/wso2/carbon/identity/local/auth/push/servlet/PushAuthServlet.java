@@ -301,7 +301,7 @@ public class PushAuthServlet extends HttpServlet {
         }
 
         // Invalidating the existing cache across the cluster.
-        contextManager.clearContext(pushAuthId);
+        contextManager.clearContextWithoutDbDelete(pushAuthId);
 
         // Store the new context with the updated token.
         context.setToken(token);

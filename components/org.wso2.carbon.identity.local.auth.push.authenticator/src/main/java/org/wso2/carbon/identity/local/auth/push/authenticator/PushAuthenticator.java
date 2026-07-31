@@ -543,7 +543,6 @@ public class PushAuthenticator extends AbstractApplicationAuthenticator implemen
             prepareAuthChallenges(pushAuthContext, tenantDomain);
             pushAuthContext.setDeviceId(devices.getFirst().getDeviceId());
             pushAuthContext.setScenario(PUSH_AUTHENTICATION.getValue());
-            pushAuthContextManager.storeContext(pushAuthId, pushAuthContext);
             context.setProperty(PUSH_AUTH_ID, pushAuthId);
 
             List<String> notifiedDeviceIds = new ArrayList<>();
