@@ -48,4 +48,11 @@ public interface PushAuthContextManager {
      * @param key           Unique key for identifying the push auth context for the session.
      */
     void clearContext(String key);
+
+    /**
+     * Clear the push auth context from the in memory cache without deleting it from the temp session store.
+     * @param key
+     */
+    default void clearContextWithoutDbDelete(String key){
+    }
 }

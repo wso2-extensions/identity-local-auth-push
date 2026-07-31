@@ -98,4 +98,14 @@ public class PushAuthContextManagerImpl implements PushAuthContextManager {
 
         SessionDataStore.getInstance().clearSessionData(key, PUSH_AUTH_CONTEXT_CACHE);
     }
+
+    /**
+     * Clear the push auth context from the in memory cache without deleting it from the temp session store.
+     * @param key
+     */
+    @Override
+    public void clearContextWithoutDbDelete(String key) {
+
+        PushAuthContextCache.getInstance().clearCacheEntry(new PushAuthContextCacheKey(key));
+    }
 }
